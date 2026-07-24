@@ -7,3 +7,4 @@ sqlalchemy
 fastapi
 pydantic-settings
 python-jose[cryptography]
+psycopg[binary]
