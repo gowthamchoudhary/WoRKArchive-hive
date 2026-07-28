@@ -6,21 +6,34 @@ from db.session import get_db
 from core.config import settings
 from jose import JWTError,jwt
 from passlib.context import CryptContext
-from datetime import timedelta,datetime
-from model.users.users import User
+from datetime import timedelta,datetime,timezone
+from model.users.users import User,RefreshToken
+import hashlib
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
 pwd_context = CryptContext(schemes=["bcrypt"] ,deprecated="auto")
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
-def  verify_token(token):
+
+
+def verify_token(token):
     try:
-        payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
+        return jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
+    except JWTError:
+        return None
+
+
+def  verify_access_token(token):
+    try:
+        payload = verify_token(token)
+        user_id = payload.get("sub")    
         if user_id is None:
             raise HTTPException(status_code=401,detail="invalid token")
+        if payload["type"] != "access":
+            return None
         return user_id
     except JWTError:
         raise HTTPException(status_code=401,detail="invalid token")
@@ -56,3 +69,47 @@ def authenticate_user(username:str,password:str,db):
         raise HTTPException(status_code=401,detail="authentication failed")
     
     return db_user
+def get_user_email(email,db:Session=Depends(get_db)):
+    db_user = db.query(User).filter(User.email == email).first()
+    if not db_user:
+        raise HTTPException(status_code=401,detail="user deos not exist")
+    return db_user
+def create_refresh_token(user_id:int):
+    expires = datetime.now()+timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {
+        "sub":str(user_id),
+        "type":"refresh",
+        "exp":expires,
+    }
+    return jwt.encode(payload,SECRET_KEY,algorithm=ALGORITHM)
+def verify_refresh_token(token):
+    payload = verify_token(token)
+    if payload is None:
+        return None
+    if payload["type"]!="refresh":
+        return None
+    return payload
+def hash_refresh_token(token):
+    return hashlib.sha256(token.encode()).hexdigest()
+
+def save_refresh_token(db,user_id,token):
+    expire = datetime.now(timezone.now)+timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    db_token = RefreshToken(
+        user_id=user_id,
+        token_hash=hash_refresh_token(token),
+        expires_at=expire,
+        revoked=True,
+    )
+    db.add()
+    db.commit()
+
+
+def get_refresh_token(db,token):
+    return db.query(RefreshToken).filter(RefreshToken.token_hash==hash_refresh_token(token)).first()
+def revoke_refresh_token(db,token):
+    db_token = db.query(RefreshToken).filter(RefreshToken.token_hash==hash_refresh_token(token))
+    if db_token:
+        db_token.revoked = True
+        db.commit()
+
+
