@@ -21,7 +21,7 @@ def login_github():
     return RedirectResponse(github_auth_url)
 
 @router.get("/callback")
-async def github_callback(code:str,current_user:session=Depends(get_current_user)):
+async def github_callback(code:str, current_user:session=Depends(get_current_user)):
     access_token = exchange_code_for_access_token(code)
     github_user_info = get_github_user_info(access_token)
     
