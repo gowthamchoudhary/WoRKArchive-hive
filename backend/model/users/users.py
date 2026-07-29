@@ -11,6 +11,8 @@ class User(Base):
     created_at:Mapped[datetime]=mapped_column(server_default=func.now())
     
 class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
     id:Mapped[int]=mapped_column(Integer,primary_key=True,index=True)
     user_id:Mapped[int]=mapped_column(Integer,ForeignKey("users.id"))
     token_hash:Mapped[str] = mapped_column(String)

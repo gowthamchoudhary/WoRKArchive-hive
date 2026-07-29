@@ -1,6 +1,6 @@
 from fastapi import APIRouter,Depends,HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from core.dependency import get_current_user,create_access_token,authenticate_user,get_user_email,hash_password,verify_access_token,create_refresh_token,save_refresh_token,verify_refresh_token,get_refresh_token,revoke_refresh_token,
+from core.dependency import get_current_user,create_access_token,authenticate_user,get_user_email,hash_password,verify_access_token,create_refresh_token,save_refresh_token,verify_refresh_token,get_refresh_token,revoke_refresh_token
 from db.session import get_db
 from sqlalchemy.orm import Session
 from model.users.user_schema import UserResponse , UserCreate,RefreshRequest
@@ -34,12 +34,13 @@ def get_profile(
     }
 @router.post("/register")
 def register(user:UserCreate,db:Session=Depends(get_db)):
-    existing = get_user_email(user.email)
+    existing = get_user_email(user.email,db)
     if existing:
         raise HTTPException(status_code=400,detail="email already exists")
-    db_user = User(email=user.email,password_hash=hash_password(user.password))
+    db_user = User(email=user.email,password_hash=hash_password(user.password),username=user.username)
     db.add(db_user)
-    db.close()
+    db.commit()
+    db.refresh(db_user)
     return {"message":"user is created"}
 @router.post("/refresh")
 def refresh(data:RefreshRequest,db:Session=Depends(get_db)):
@@ -52,9 +53,10 @@ def refresh(data:RefreshRequest,db:Session=Depends(get_db)):
     if db_token.revoked:
         raise HTTPException(status_code=401,detail="token is revoked")
     revoke_refresh_token(db,data.refreshtoken)
-    access_token = create_access_token(int(payload["sub"]))
-    refresh_token = create_refresh_token(int,payload["sub"])
-    save_refresh_token(db,payload["sub"],int(payload["sub"]),refresh_token)
+    user_id = int(payload["sub"])
+    access_token = create_access_token({"sub":str(user_id)})
+    refresh_token = create_refresh_token(user_id)
+    save_refresh_token(db=db,user_id=user_id,token=refresh_token)
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,

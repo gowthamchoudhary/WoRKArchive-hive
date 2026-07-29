@@ -27,19 +27,20 @@ def verify_token(token):
 
 
 def  verify_access_token(token):
-    try:
-        payload = verify_token(token)
-        user_id = payload.get("sub")    
-        if user_id is None:
-            raise HTTPException(status_code=401,detail="invalid token")
-        if payload["type"] != "access":
-            return None
-        return user_id
-    except JWTError:
+    payload = verify_token(token)
+    if payload is None:
         raise HTTPException(status_code=401,detail="invalid token")
+    user_id = payload.get("sub")    
+    if user_id is None:
+        raise HTTPException(status_code=401,detail="invalid token")
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401,detail="invalid token")
+    return user_id
 
 def get_current_user(token:Annotated[str,Depends(oauth2_scheme)],db:Session=Depends(get_db)):
-    user_id=verify_token(token)
+    user_id=verify_access_token(token)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="invalid token")
     try:
         user_id = int(user_id)
     except ValueError:
@@ -57,7 +58,7 @@ def verify_password(plain_password,hashed_password):
 def create_access_token(data:dict):
     to_encode = data.copy()
     exp = datetime.utcnow()+timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({'exp':exp})
+    to_encode.update({'exp':exp,"type":"access"})
     encoded_jwt = jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -70,12 +71,9 @@ def authenticate_user(username:str,password:str,db):
     
     return db_user
 def get_user_email(email,db:Session=Depends(get_db)):
-    db_user = db.query(User).filter(User.email == email).first()
-    if not db_user:
-        raise HTTPException(status_code=401,detail="user deos not exist")
-    return db_user
+    return db.query(User).filter(User.email == email).first()
 def create_refresh_token(user_id:int):
-    expires = datetime.now()+timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expires = datetime.now(timezone.utc)+timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {
         "sub":str(user_id),
         "type":"refresh",
@@ -86,28 +84,28 @@ def verify_refresh_token(token):
     payload = verify_token(token)
     if payload is None:
         return None
-    if payload["type"]!="refresh":
+    if payload.get("type")!="refresh":
         return None
     return payload
 def hash_refresh_token(token):
     return hashlib.sha256(token.encode()).hexdigest()
 
 def save_refresh_token(db,user_id,token):
-    expire = datetime.now(timezone.now)+timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc)+timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     db_token = RefreshToken(
         user_id=user_id,
         token_hash=hash_refresh_token(token),
-        expires_at=expire,
-        revoked=True,
+        expire_at=expire,
+        revoked=False,
     )
-    db.add()
+    db.add(db_token)
     db.commit()
 
 
 def get_refresh_token(db,token):
     return db.query(RefreshToken).filter(RefreshToken.token_hash==hash_refresh_token(token)).first()
 def revoke_refresh_token(db,token):
-    db_token = db.query(RefreshToken).filter(RefreshToken.token_hash==hash_refresh_token(token))
+    db_token = db.query(RefreshToken).filter(RefreshToken.token_hash==hash_refresh_token(token)).first()
     if db_token:
         db_token.revoked = True
         db.commit()
