@@ -22,16 +22,7 @@ def login(form:OAuth2PasswordRequestForm=Depends(),db:Session=Depends(get_db)):
         "refresh_token":refresh_token,
         "token_type":"bearer"
     }
-@router.get("/profile")
-def get_profile(
-    current_user = Depends(get_current_user)
-):
-    
-    return {
-        "id": current_user.id,
-        "username": current_user.username,
-        "email": current_user.email
-    }
+
 @router.post("/register")
 def register(user:UserCreate,db:Session=Depends(get_db)):
     existing = get_user_email(user.email,db)
