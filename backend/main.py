@@ -27,3 +27,13 @@ def get_profile(
         "username": current_user.username,
         "email": current_user.email
     }
+@app.get("/dashboard")
+def dashboard(current_user = Depends(get_current_user)):
+    return {
+        "message": f"Welcome {current_user.username}!",
+        "user": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+        },
+    }

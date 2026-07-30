@@ -10,7 +10,7 @@ from datetime import timedelta,datetime,timezone
 from model.users.users import User,RefreshToken
 import hashlib
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
-pwd_context = CryptContext(schemes=["bcrypt"] ,deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"] ,deprecated="auto")
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
