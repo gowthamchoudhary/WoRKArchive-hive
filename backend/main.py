@@ -1,5 +1,6 @@
 from fastapi import FastAPI,Request,HTTPException,Depends
 from api.v1 import auth
+from db.session import Base,engine
 from api.v1 import github
 from core.dependency import get_current_user
 app = FastAPI(title="todays goal",version="1.0.0")
