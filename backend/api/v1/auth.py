@@ -70,7 +70,7 @@ def refresh(refresh_token:str | None = Cookie(default=None),db:Session=Depends(g
     user_id = int(payload["sub"])
     new_access_token = create_access_token({"sub":str(user_id)})
     new_refresh_token = create_refresh_token(user_id)
-    save_refresh_token(db=db,user_id=user_id,token=refresh_token)
+    save_refresh_token(db=db,user_id=user_id,token=new_refresh_token)
     response = JSONResponse(
         content={
             "message":"token refreshed",
@@ -95,16 +95,14 @@ def refresh(refresh_token:str | None = Cookie(default=None),db:Session=Depends(g
     )
     return response
 @router.post("/logout")
-def logout(refresh_token:str | None=Cookie(default=None),db:Session=Depends(get_db)):
+def logout(
+    refresh_token: str | None = Cookie(default=None),
+    db: Session = Depends(get_db),
+):
     if refresh_token:
-        revoke_refresh_token(db,refresh_token)
-        response = JSONResponse(
-            content={
-                "message":"logged out",
+        revoke_refresh_token(db, refresh_token)
 
-            }
-        )
-        response.delete_cookie(key="access token")
-        response.delete_cookie(key="refresh token")
-
+    response = JSONResponse(content={"message": "logged out"})
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
     return response
