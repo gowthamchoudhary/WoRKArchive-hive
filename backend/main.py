@@ -10,12 +10,7 @@ app.include_router(github.router)
 @app.get("/")
 def get_me():
     return {"message": "God Loves you"}
-@app.get("/dashboard")
-def dashboard(current_user: dict = Depends(get_current_user)):
-    return {
-        "message": f"Welcome {current_user.username}!",
-        "user": current_user
-    }   
+  
 
 @app.get("/profile")
 def get_profile(

@@ -1,6 +1,6 @@
 from fastapi.security import OAuth2PasswordBearer
 from typing import Annotated
-from fastapi import Depends,HTTPException
+from fastapi import Depends,HTTPException,Cookie
 from sqlalchemy.orm import Session
 from db.session import get_db
 from core.config import settings
@@ -37,7 +37,7 @@ def  verify_access_token(token):
         raise HTTPException(status_code=401,detail="invalid token")
     return user_id
 
-def get_current_user(token:Annotated[str,Depends(oauth2_scheme)],db:Session=Depends(get_db)):
+def get_current_user(token:str | None = Cookie(default=None),db:Session=Depends(get_db)):
     user_id=verify_access_token(token)
     if user_id is None:
         raise HTTPException(status_code=401, detail="invalid token")
@@ -111,3 +111,7 @@ def revoke_refresh_token(db,token):
         db.commit()
 
 
+# def get_current_user_from_cookie(
+#         access_token:str = Cookie(None)
+# )
+    
