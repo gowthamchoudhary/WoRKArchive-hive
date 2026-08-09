@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from model.users.user_schema import UserResponse , UserCreate,RefreshRequest
 from fastapi.responses import JSONResponse
 from model.users.users import User
-from fastapi.responses import JSONResponse
 router = APIRouter(prefix="/v1/auth",tags=["authentication"])
 
 @router.post("/login")
@@ -56,21 +55,21 @@ def register(user:UserCreate,db:Session=Depends(get_db)):
     db.refresh(db_user)
     return {"message":"user is created"}
 @router.post("/refresh")
-def refresh(refreshtoken:str | None = Cookie(default=None),db:Session=Depends(get_db)):
-    if refreshtoken is None:
+def refresh(refresh_token:str | None = Cookie(default=None),db:Session=Depends(get_db)):
+    if refresh_token is None:
         raise HTTPException(status_code=401,detail="refresh token is missing")
-    payload = verify_refresh_token(refreshtoken)
+    payload = verify_refresh_token(refresh_token)
     if payload is None:
         raise HTTPException(status_code=401,detail="invalid refresh token")
-    db_token = get_refresh_token(db,refreshtoken)
+    db_token = get_refresh_token(db,refresh_token)
     if db_token is None:
         raise HTTPException(status_code=401,detail="token not found")
     if db_token.revoked:
         raise HTTPException(status_code=401,detail="token is revoked")
-    revoke_refresh_token(db,refreshtoken)
+    revoke_refresh_token(db,refresh_token)
     user_id = int(payload["sub"])
-    access_token = create_access_token({"sub":str(user_id)})
-    refresh_token = create_refresh_token(user_id)
+    new_access_token = create_access_token({"sub":str(user_id)})
+    new_refresh_token = create_refresh_token(user_id)
     save_refresh_token(db=db,user_id=user_id,token=refresh_token)
     response = JSONResponse(
         content={
@@ -79,16 +78,16 @@ def refresh(refreshtoken:str | None = Cookie(default=None),db:Session=Depends(ge
         }
     )
     response.set_cookie(
-        key="access token",
-        value=access_token,
+        key="access_token",
+        value=new_access_token,
         httponly=True,
         secure=False,
         samesite="lax",
         max_age=60*60,
     )
     response.set_cookie(
-        key="refresh token",
-        value=refresh_token,
+        key="refresh_token",
+        value=new_refresh_token,
         httponly=True,
         secure=False,
         samesite="lax",
@@ -96,9 +95,9 @@ def refresh(refreshtoken:str | None = Cookie(default=None),db:Session=Depends(ge
     )
     return response
 @router.post("/logout")
-def logout(refreshtoken:str | None=Cookie(default=None),db:Session=Depends(get_db)):
-    if refreshtoken:
-        revoke_refresh_token(db,refreshtoken)
+def logout(refresh_token:str | None=Cookie(default=None),db:Session=Depends(get_db)):
+    if refresh_token:
+        revoke_refresh_token(db,refresh_token)
         response = JSONResponse(
             content={
                 "message":"logged out",

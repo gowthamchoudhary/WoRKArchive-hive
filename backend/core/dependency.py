@@ -37,8 +37,10 @@ def  verify_access_token(token):
         raise HTTPException(status_code=401,detail="invalid token")
     return user_id
 
-def get_current_user(token:str | None = Cookie(default=None),db:Session=Depends(get_db)):
-    user_id=verify_access_token(token)
+def get_current_user(access_token:str | None = Cookie(default=None),db:Session=Depends(get_db)):
+    if access_token is None:
+        raise HTTPException(status_code=401,detail="not authenticated")
+    user_id=verify_access_token(access_token)
     if user_id is None:
         raise HTTPException(status_code=401, detail="invalid token")
     try:
