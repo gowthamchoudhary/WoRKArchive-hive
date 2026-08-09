@@ -108,6 +108,4 @@ def logout(refreshtoken:str | None=Cookie(default=None),db:Session=Depends(get_d
         response.delete_cookie(key="access token")
         response.delete_cookie(key="refresh token")
 
-    return {
-        "message":"logged out "
-    }
+    return response

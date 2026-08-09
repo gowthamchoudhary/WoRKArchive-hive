@@ -35,11 +35,11 @@ async def github_callback(
     github_user = await get_github_user_info(access_token)
     db_connection = db.query(Connection).filter(Connection.provider_user_id==github_user["id"], Connection.provider == "github").first()
     if db_connection:
-        db_connection.provider_user_id=github_user["id"]
-        username=github_user["login"],
-        avatar_url=github_user["avatar_url"],
-        profile_url=github_user["html_url"],
-        access_token=access_token,
+        db_connection.provider_user_id = github_user["id"]
+        db_connection.username = github_user["login"]
+        db_connection.avatar_url = github_user["avatar_url"]
+        db_connection.profile_url = github_user["html_url"]
+        db_connection.access_token = access_token
     else:
         db_connection = Connection(
                 user_id=current_user.id,
@@ -58,7 +58,7 @@ async def github_callback(
 
     jwt_token =  create_access_token(
        {
-           "sub":db_connection.id,
+           "sub":str(current_user.id),
        }
     )
 
