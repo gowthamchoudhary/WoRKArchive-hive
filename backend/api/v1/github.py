@@ -33,9 +33,10 @@ async def github_callback(
     access_token = await exchange_code_for_access_token(code)
 
     github_user = await get_github_user_info(access_token)
-    db_connection = db.query(Connection).filter(Connection.provider_user_id==github_user["id"], Connection.provider == "github").first()
+    github_provider_user_id = str(github_user["id"])
+    db_connection = db.query(Connection).filter(Connection.provider_user_id==github_provider_user_id, Connection.provider == "github").first()
     if db_connection:
-        db_connection.provider_user_id = github_user["id"]
+        db_connection.provider_user_id = github_provider_user_id
         db_connection.username = github_user["login"]
         db_connection.avatar_url = github_user["avatar_url"]
         db_connection.profile_url = github_user["html_url"]
@@ -44,13 +45,13 @@ async def github_callback(
         db_connection = Connection(
                 user_id=current_user.id,
                 provider="github",
-                provider_user_id=github_user["id"],
+                provider_user_id=github_provider_user_id,
                 username=github_user["login"],
                 avatar_url=github_user["avatar_url"],
                 profile_url=github_user["html_url"],
                 access_token=access_token,
             )
-        db.add(db_connection)
+        db.add(db_connection)   
 
   
     db.commit()
