@@ -99,9 +99,59 @@ def clean_relevant_events(events):
     "PullRequestReviewCommentEvent",
     "ReleaseEvent",
 }
+    
     relevent_events=[]
+    git_info = {
+    "commits": [],
+    "pull_requests": [],
+    "issues": []
+}
     for event in events:
         event_type = event.get("type")
         if event_type  in allowed_EVENTS:
             relevent_events.append(event)
-    return relevent_events
+        if event_type == "PushEvent":
+            commit = event["payload"]["commits"]
+            git_info["commits"].extend(commit)
+        if event_type=="PullRequestEvent":
+            
+            payload = event["payload"]
+            action = payload.get("action")
+            pull_request = payload.get("pull_request", {})
+            title = pull_request.get("title")
+            url = pull_request.get("html_url")
+            number = pull_request.get("number")
+            state = pull_request.get("state")
+            merged = pull_request.get("merged")
+            git_info["pull_requests"].append({
+    "action": action,
+    "title": title,
+    "url": url,
+    "number": number,
+    "state": state,
+    "merged": merged,
+})
+        if event_type == "IssuesEvent":
+            payload = event["payload"]
+
+            action = payload.get("action")
+            issue = payload.get("issue", {})
+
+            title = issue.get("title")
+            url = issue.get("html_url")
+            number = issue.get("number")
+            state = issue.get("state")
+            repo = event.get("repo", {}).get("name")
+            created_at = event.get("created_at")
+            git_info["issues"].append({
+    "action": action,
+    "title": title,
+    "url": url,
+    "number": number,
+    "state": state,
+    "repo": repo,
+    "created_at": created_at,
+})
+
+
+    return git_info
