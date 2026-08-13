@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends,HTTPException
+from fastapi import APIRouter, Depends,HTTPException,Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-
+from time import time
 from db.session import get_db
 from core.dependency import get_current_user, create_access_token
 from model.connections.connection import Connection
 import httpx
+from datetime import datetime,timedelta,date,time
+import zoneinfo
 from services.github_service import (
     get_github_login_url,
     exchange_code_for_access_token,
@@ -98,15 +100,43 @@ def get_github_me(current_user=Depends(get_current_user),db:Session=Depends(get_
         "profile_url":db_github.profile_url,
         "provider":db_github.provider
     }
-@router.get("/activity")
-async def get_github_activity(current_user=Depends(get_current_user),db:Session = Depends(get_db)):
+@router.get("/activity/today")
+async def get_github_activity(post_time:time,
+                              timezone:str=Query("Asia/kolkata"),
+                              current_user=Depends(get_current_user),db:Session = Depends(get_db)):
     db_github = db.query(Connection).filter(Connection.user_id==current_user.id,Connection.provider=="github").first()
     if not db_github:
-        raise HTTPException(status_code=401,detail="no github info is found")
+        raise HTTPException(status_code=404,detail="no github info is found")
     access_token = db_github.access_token
     events = await get_user_events(db_github.username,access_token)
+    try:
+        user_timezone = zoneinfo(timezone)
+    except Exception:
+        raise HTTPException(status_code=400,detail="invalid timezone")
+    now  = datetime.now(user_timezone)
+    window_end  = datetime.combine(
+        now.date(),
+        post_time,
+        user_timezone
+    )
+    if window_end>now:
+        window_end-=timedelta(days=1)
+    window_start = window_end-timedelta(hours=24)
+    relevant_events=[]
+    for event in events:
+        event_time = datetime.fromisoformat(
+            event["create_at"].replace("Z","+00:00")
+
+        )
+        event_time = datetime.astimezone(user_timezone)
+        if window_start<=event_time<=window_end:
+            relevant_events.append(event)
 
     return {
-        "provider":"github",
-        "events":events
+        "window": {
+            "start": window_start.isoformat(),
+            "end": window_end.isoformat()
+        },
+        "count": len(relevant_events),
+        "events": relevant_events
     }
