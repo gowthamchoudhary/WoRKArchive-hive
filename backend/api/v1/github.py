@@ -13,7 +13,8 @@ from services.github_service import (
     exchange_code_for_access_token,
     get_github_user_info,
     get_github_user_email,
-    get_user_events
+    get_user_events,
+    clean_relevant_events
 )
 router = APIRouter(
     prefix="/api/v1/auth/github",
@@ -131,6 +132,7 @@ async def get_github_activity(post_time:time,
         event_time = datetime.astimezone(user_timezone)
         if window_start<=event_time<=window_end:
             relevant_events.append(event)
+    relevant_events = clean_relevant_events(relevant_events)
 
     return {
         "window": {

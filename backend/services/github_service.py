@@ -89,3 +89,19 @@ async def get_user_events(username:str,access_token:str):
         )
         response.raise_for_status()
         return response.json()
+def clean_relevant_events(events):
+    allowed_EVENTS = {
+    "PushEvent",
+    "PullRequestEvent",
+    "IssuesEvent",
+    "IssueCommentEvent",
+    "PullRequestReviewEvent",
+    "PullRequestReviewCommentEvent",
+    "ReleaseEvent",
+}
+    relevent_events=[]
+    for event in events:
+        event_type = event.get("type")
+        if event_type  in allowed_EVENTS:
+            relevent_events.append(event)
+    return relevent_events
