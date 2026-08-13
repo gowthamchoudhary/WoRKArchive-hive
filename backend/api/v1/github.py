@@ -7,7 +7,7 @@ from core.dependency import get_current_user, create_access_token
 from model.connections.connection import Connection
 import httpx
 from datetime import datetime,timedelta,date,time
-import zoneinfo
+from zoneinfo import ZoneInfo
 from services.github_service import (
     get_github_login_url,
     exchange_code_for_access_token,
@@ -103,7 +103,7 @@ def get_github_me(current_user=Depends(get_current_user),db:Session=Depends(get_
     }
 @router.get("/activity/today")
 async def get_github_activity(post_time:time,
-                              timezone:str=Query("Asia/kolkata"),
+                              timezone:str=Query("Asia/Kolkata"),
                               current_user=Depends(get_current_user),db:Session = Depends(get_db)):
     db_github = db.query(Connection).filter(Connection.user_id==current_user.id,Connection.provider=="github").first()
     if not db_github:
@@ -111,7 +111,7 @@ async def get_github_activity(post_time:time,
     access_token = db_github.access_token
     events = await get_user_events(db_github.username,access_token)
     try:
-        user_timezone = zoneinfo(timezone)
+        user_timezone = ZoneInfo(timezone)
     except Exception:
         raise HTTPException(status_code=400,detail="invalid timezone")
     now  = datetime.now(user_timezone)
@@ -126,19 +126,27 @@ async def get_github_activity(post_time:time,
     relevant_events=[]
     for event in events:
         event_time = datetime.fromisoformat(
-            event["create_at"].replace("Z","+00:00")
+            event["created_at"].replace("Z","+00:00")
 
         )
-        event_time = datetime.astimezone(user_timezone)
+        event_time = event_time.astimezone(user_timezone)
         if window_start<=event_time<=window_end:
             relevant_events.append(event)
-    relevant_events = clean_relevant_events(relevant_events)
-
+    git_info = await clean_relevant_events(relevant_events,access_token)
+    for event in relevant_events:
+        print(
+            event.get("type"),
+            event.get("created_at")
+        )
+    for event in relevant_events:
+        if event.get("type") == "PushEvent":
+            print(event)
+    
     return {
         "window": {
             "start": window_start.isoformat(),
             "end": window_end.isoformat()
         },
         "count": len(relevant_events),
-        "events": relevant_events
+        "git_info": git_info
     }

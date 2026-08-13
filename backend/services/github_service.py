@@ -89,7 +89,7 @@ async def get_user_events(username:str,access_token:str):
         )
         response.raise_for_status()
         return response.json()
-def clean_relevant_events(events):
+async def clean_relevant_events(events,access_token):
     allowed_EVENTS = {
     "PushEvent",
     "PullRequestEvent",
@@ -100,20 +100,40 @@ def clean_relevant_events(events):
     "ReleaseEvent",
 }
     
-    relevent_events=[]
+    
     git_info = {
-    "commits": [],
-    "pull_requests": [],
-    "issues": []
+  "commits": [],
+  "pull_requests": [],
+  "issues": [],
+  "issue_comments": [],
+  "reviews": [],
+  "review_comments": [],
+  "releases": []
 }
     for event in events:
         event_type = event.get("type")
-        if event_type  in allowed_EVENTS:
-            relevent_events.append(event)
+        
         if event_type == "PushEvent":
-            commit = event["payload"]["commits"]
-            git_info["commits"].extend(commit)
-        if event_type=="PullRequestEvent":
+            payload = event.get("payload")
+            repo =  event.get("repo", {}).get("name")
+            head = payload.get("head")
+            before = payload.get("before")
+            if before and head:
+                commits = await compare_push_commits(repo=repo,access_token=access_token,head=head,before=before)
+        
+            for commit in commits:
+                sha = commit["sha"]
+                details = await get_commit_details(sha=sha,repo_name=repo,access_token=access_token)
+                if details:
+                    message = details.get("commit",{}).get("message")
+                    date = details.get("commit",{}).get("author",{}).get("date")
+                    git_info["commits"].append({
+        "message": message,
+        "date": date,
+        "sha": sha[:7],
+        "repo": repo
+    })
+        elif event_type=="PullRequestEvent":
             
             payload = event["payload"]
             action = payload.get("action")
@@ -131,7 +151,7 @@ def clean_relevant_events(events):
     "state": state,
     "merged": merged,
 })
-        if event_type == "IssuesEvent":
+        elif event_type == "IssuesEvent":
             payload = event["payload"]
 
             action = payload.get("action")
@@ -151,7 +171,104 @@ def clean_relevant_events(events):
     "state": state,
     "repo": repo,
     "created_at": created_at,
-})
+}) 
+        elif event_type == "IssueCommentEvent":
+            payload = event.get("payload", {})
+            issue = payload.get("issue", {})
+            comment = payload.get("comment", {})
+
+            git_info["issue_comments"].append({
+                "action": payload.get("action"),
+                "issue_title": issue.get("title"),
+                "issue_number": issue.get("number"),
+                "comment_body": comment.get("body", "")[:200],  
+                "url": comment.get("html_url"),
+                "repo": event.get("repo", {}).get("name"),
+                "created_at": event.get("created_at")
+            })
+        elif event_type == "PullRequestReviewEvent":
+            payload = event.get("payload", {})
+            pr = payload.get("pull_request", {})
+            review = payload.get("review", {})
+
+            git_info["reviews"].append({
+                "action": payload.get("action"),
+                "pr_title": pr.get("title"),
+                "pr_number": pr.get("number"),
+                "state": review.get("state"),  
+                "body": review.get("body", "")[:200],
+                "url": review.get("html_url"),
+                "repo": event.get("repo", {}).get("name"),
+                "created_at": event.get("created_at")
+            })
+        elif event_type == "PullRequestReviewCommentEvent":
+                payload = event.get("payload", {})
+                pr = payload.get("pull_request", {})
+                comment = payload.get("comment", {})
+
+                git_info["review_comments"].append({
+                    "action": payload.get("action"),
+                    "pr_title": pr.get("title"),
+                    "pr_number": pr.get("number"),
+                    "file_path": comment.get("path"),
+                    "comment_body": comment.get("body", "")[:200],
+                    "url": comment.get("html_url"),
+                    "repo": event.get("repo", {}).get("name"),
+                    "created_at": event.get("created_at")
+                })
+        elif event_type == "ReleaseEvent":
+            payload = event.get("payload", {})
+            release = payload.get("release", {})
+
+            git_info["releases"].append({
+                "action": payload.get("action"),  
+                "tag_name": release.get("tag_name"),
+                "name": release.get("name"),
+                "body": release.get("body", "")[:300],
+                "prerelease": release.get("prerelease", False),
+                "url": release.get("html_url"),
+                "repo": event.get("repo", {}).get("name"),
+                "created_at": event.get("created_at")
+            })
 
 
     return git_info
+async def get_commit_details(
+        repo_name:str,
+        sha:str,
+        access_token:str
+):
+    headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                }
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url = f"https://api.github.com/repos/{repo_name}/commits/{sha}",
+            headers=headers,
+                    )
+        if response.status_code == 200:
+            return response.json()
+        return None
+async def compare_push_commits(
+        repo:str,
+        before:str,
+        
+        access_token:str,
+        head:str
+):
+    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Accept": "application/vnd.github+json",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                    }
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url = f"https://api.github.com/repos/{repo}/compare/{before}...{head}",
+            headers=headers
+        )
+        if response.status_code==200:
+            data= response.json()
+            return data.get("commits")
+        return []
