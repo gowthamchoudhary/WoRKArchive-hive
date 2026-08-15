@@ -14,7 +14,9 @@ from services.github_service import (
     get_github_user_info,
     get_github_user_email,
     get_user_events,
-    clean_relevant_events
+    clean_relevant_events,
+    normalize_github_activity,
+    save_activities
 )
 router = APIRouter(
     prefix="/api/v1/auth/github",
@@ -149,4 +151,42 @@ async def get_github_activity(post_time:time,
         },
         "count": len(relevant_events),
         "git_info": git_info
+    }
+@router.post("/activity/sync")
+async def  sync_github_activity(post_time: time,
+timezone: str = Query("Asia/Kolkata"),
+current_user=Depends(get_current_user),
+db:Session=Depends(get_db)):
+    db_github = db.query(Connection).filter(Connection.user_id==current_user.id,Connection.provider=="github").first()
+    if not db_github:
+            raise HTTPException(status_code=404,detail="no github info is found")
+    access_token = db_github.access_token
+    events = await get_user_events(db_github.username,access_token)
+    try:
+        user_timezone = ZoneInfo(timezone)
+    except Exception:
+        raise HTTPException(status_code=400,detail="invalid timezone")
+    now  = datetime.now(user_timezone)
+    window_end  = datetime.combine(
+            now.date(),
+            post_time,
+            user_timezone
+        )
+    if window_end>now:
+            window_end-=timedelta(days=1)
+    window_start = window_end-timedelta(hours=24)
+    relevant_events=[]
+    for event in events:
+            event_time = datetime.fromisoformat(
+                event["created_at"].replace("Z","+00:00")
+    
+            )
+            event_time = event_time.astimezone(user_timezone)
+            if window_start<=event_time<window_end:
+                relevant_events.append(event)
+    git_info = await clean_relevant_events(relevant_events,access_token)
+    normalized_github_info = normalize_github_activity(git_info)
+    save_activities(normalized_github_info,current_user.id,db)
+    return{
+        "activities":normalized_github_info
     }
