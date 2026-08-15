@@ -1,8 +1,9 @@
 import httpx
 from fastapi import HTTPException
 from core.config import settings
-
-
+from model.activity import Activity
+from db.session import get_db   
+from datetime import datetime
 async def get_github_login_url():
     return (
         "https://github.com/login/oauth/authorize"
@@ -316,4 +317,31 @@ def normalize_github_activity(git_info):
 
             normalized_info.append(activity)
 
+
     return normalized_info
+
+def save_activities(
+    activities,
+    user_id,
+    db
+):
+    
+    for activity in activities:
+        date = activity["occurred_at"]
+        clean_str = date.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(clean_str)
+        db_activity = Activity(
+            user_id=user_id,
+            source=activity["source"],
+            type=activity["type"],
+            title=activity["title"],
+            repository=activity["repository"],
+            url=activity["url"],
+            occurred_at=dt
+        )
+        db.add(db_activity)
+    db.commit()    
+   
+    return {
+        "message":"activity saved"
+    }

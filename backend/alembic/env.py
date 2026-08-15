@@ -5,7 +5,7 @@ from sqlalchemy import pool
 from db.session import Base
 from model.users.users import User, RefreshToken
 from model.connections.connection import Connection
-
+from model.activity import Activity
 
 from alembic import context
 
