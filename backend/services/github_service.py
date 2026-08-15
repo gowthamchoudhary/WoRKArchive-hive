@@ -275,17 +275,21 @@ async def compare_push_commits(
         return []
 
 def normalize_github_activity(git_info):
-    normalized_info={}
-    for event  in git_info:
-        items = git_info[event]
+    normalized_info = []
+
+    for event_type in git_info:
+        items = git_info[event_type]
+
         for item in items:
-            activity={
-                "source":"github",
-                "type":event,
-                "title":item.get("message"),
-                "repository": item.get("repository"),
+            activity = {
+                "source": "github",
+                "type": event_type,
+                "title": item.get("message"),
+                "repository": item.get("repo"),
                 "url": item.get("url"),
-                "occurred_at": item.get("occurred_at") or item.get("created_at")
+                "occurred_at": item.get("date") or item.get("created_at")
             }
+
             normalized_info.append(activity)
+
     return normalized_info
