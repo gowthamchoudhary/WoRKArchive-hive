@@ -118,6 +118,7 @@ async def clean_relevant_events(events,access_token):
             repo =  event.get("repo", {}).get("name")
             head = payload.get("head")
             before = payload.get("before")
+            commits = []
             if before and head:
                 commits = await compare_push_commits(repo=repo,access_token=access_token,head=head,before=before)
         
@@ -272,3 +273,19 @@ async def compare_push_commits(
             data= response.json()
             return data.get("commits")
         return []
+
+def normalize_github_activity(git_info):
+    normalized_info={}
+    for event  in git_info:
+        items = git_info[event]
+        for item in items:
+            activity={
+                "source":"github",
+                "type":event,
+                "title":item.get("message"),
+                "repository": item.get("repository"),
+                "url": item.get("url"),
+                "occurred_at": item.get("occurred_at") or item.get("created_at")
+            }
+            normalized_info.append(activity)
+    return normalized_info
