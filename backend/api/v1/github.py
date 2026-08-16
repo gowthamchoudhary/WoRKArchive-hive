@@ -5,6 +5,7 @@ from time import time
 from db.session import get_db
 from core.dependency import get_current_user, create_access_token
 from model.connections.connection import Connection
+from model.activity import Activity
 import httpx
 from datetime import datetime,timedelta,date,time
 from zoneinfo import ZoneInfo
@@ -190,3 +191,29 @@ db:Session=Depends(get_db)):
     return{
         "activities":normalized_github_info
     }
+@router.get("/retrieve_activity")
+async def get_activities(
+    post_time:time,
+    timezone: str = Query("Asia/Kolkata"),
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_activity = db.query(Activity).filter(Activity.user_id==current_user.id).all()
+    try:
+        user_timezone = ZoneInfo(timezone)
+    except Exception:
+        raise HTTPException(status_code=400,detail="invalid timezone")
+    now  = datetime.now(user_timezone)
+    window_end  = datetime.combine(
+            now.date(),
+            post_time,
+            user_timezone
+        )
+    if window_end>now:
+            window_end-=timedelta(days=1)
+    window_start = window_end-timedelta(hours=24)
+    activities=[]
+    for activity in db_activity:
+        if window_start<=activity.occurred_at<window_end:
+            activities.append(activity)
+    return activities
