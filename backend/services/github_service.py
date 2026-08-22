@@ -350,6 +350,3 @@ def save_activities(
     return {
         "message":"activity saved"
     }
-
-def build_work_analysis_prompt(activities):
-    
