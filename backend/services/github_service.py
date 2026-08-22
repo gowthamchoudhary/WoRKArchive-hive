@@ -327,8 +327,13 @@ def save_activities(
 ):
     
     for activity in activities:
-        date = activity["occurred_at"]
+        date = activity.get("created_at")
+
+        if date is None:
+            print("Activity with missing date:", activity)
+            continue
         clean_str = date.replace("Z", "+00:00")
+        
         dt = datetime.fromisoformat(clean_str)
         db_activity = Activity(
             user_id=user_id,
@@ -345,3 +350,6 @@ def save_activities(
     return {
         "message":"activity saved"
     }
+
+def build_work_analysis_prompt(activities):
+    

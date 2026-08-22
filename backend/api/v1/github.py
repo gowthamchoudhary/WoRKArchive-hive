@@ -19,6 +19,7 @@ from services.github_service import (
     normalize_github_activity,
     save_activities
 )
+from services.llm_service import analyze_work
 router = APIRouter(
     prefix="/api/v1/auth/github",
     tags=["Authentication"],
@@ -217,3 +218,31 @@ async def get_activities(
         if window_start<=activity.occurred_at<window_end:
             activities.append(activity)
     return activities
+@router.get("/retrieve_summary_llm")
+async def retrieve_summary( post_time:time,
+    timezone: str = Query("Asia/Kolkata"),
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_activity = db.query(Activity).filter(Activity.user_id==current_user.id).all()
+    try:
+        user_timezone = ZoneInfo(timezone)
+    except Exception:
+        raise HTTPException(status_code=400,detail="invalid timezone")
+    now  = datetime.now(user_timezone)
+    window_end  = datetime.combine(
+            now.date(),
+            post_time,
+            user_timezone
+        )
+    if window_end>now:
+            window_end-=timedelta(days=1)
+    window_start = window_end-timedelta(hours=24)
+    activities=[]
+    for activity in db_activity:
+        if window_start<=activity.occurred_at<window_end:
+            activities.append(activity)
+    llm_summary = await analyze_work(activities)
+    return {
+         "llm summary":llm_summary
+    }
