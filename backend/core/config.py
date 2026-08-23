@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     ALGORITHM:str
     ACCESS_TOKEN_EXPIRE_MINUTES:int
     REFRESH_TOKEN_EXPIRE_DAYS:int
-    OPENROUTER_API_KEY:str  
-    OPENROUTER_MODEL:str
+    GROQ_API_KEY:str  
+    GROQ_MODEL:str
     model_config = SettingsConfigDict(
         env_file=".env"
     )

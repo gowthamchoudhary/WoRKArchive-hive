@@ -1,9 +1,9 @@
 import httpx
 from fastapi import HTTPException
 from core.config import settings
-from db.session import get_db   
-import json
 
+import json
+from model.summary.summary import WorkSummary
 async def analyze_work(activities):
     activities_data = []
     for activity in activities:
@@ -16,45 +16,56 @@ async def analyze_work(activities):
             "occurred_at": activity.occurred_at.isoformat()}
         )
     headers = {
-        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {settings.GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
-    url ="https://openrouter.ai/api/v1/chat/completions"
+    url = "https://api.groq.com/openai/v1/chat/completions"
     payload = {
-        "model":settings.OPENROUTER_MODEL,
+        "model":settings.GROQ_MODEL,
         "messages":[
             {
                 "role":"system",
                 "content":""""You are a work analysis assistant.
 
 Analyze the developer activity provided by the user.
+Return ONLY JSON valid  in this  exact structure:
+{
+"summary": "short description of the work",
+    "projects": [],
+    "technologies": [],
+    "activities": [],
+    "accomplishments": [],
+    "problems_solved": []
 
-Identify:
-- what they worked on
-- the projects involved
-- important technologies
-- meaningful accomplishments
+}
 
-Ignore meaningless activity.
-Do not invent anything that is not supported by the activity.
-
-Return a concise summary.
+Rules:
+- Only use information supported by the activity.
+- Do not invent technologies, projects, or accomplishments.
+- Ignore meaningless activity.
+- Keep each array concise.
                 """
             },
             {
                 "role":"user",
-                "content":json.dumps(activities_data)
+                "content":json.dumps(activities_data ,indent=2)
             }
         ]
     }
+    print("MODEL:", settings.GROQ_MODEL)
+    print("URL:", url)
     async with httpx.AsyncClient() as client:
         response = await client.post(
             url=url,
             headers=headers,
             json=payload
-        )
+        )   
+    print("STATUS:", response.status_code)
+    print("RESPONSE:", response.text)
+
     response.raise_for_status()
-    if response.status_code == 200:
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
-    return None
+
+
+    data = response.json()
+    content =  data["choices"][0]["message"]["content"]
+    return json.load(content)
