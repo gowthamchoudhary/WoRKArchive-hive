@@ -317,24 +317,26 @@ def normalize_github_activity(git_info):
 
             normalized_info.append(activity)
 
-
     return normalized_info
+
 
 def save_activities(
     activities,
     user_id,
     db
 ):
-    
     for activity in activities:
-        date = activity.get("created_at")
+
+        
+        date = activity.get("occurred_at")
 
         if date is None:
-            print("Activity with missing date:", activity)
+            print("Activity with missing occurred_at:", activity)
             continue
+
         clean_str = date.replace("Z", "+00:00")
-        
         dt = datetime.fromisoformat(clean_str)
+
         db_activity = Activity(
             user_id=user_id,
             source=activity["source"],
@@ -344,9 +346,11 @@ def save_activities(
             url=activity["url"],
             occurred_at=dt
         )
+
         db.add(db_activity)
-    db.commit()    
-   
+
+    db.commit()
+
     return {
-        "message":"activity saved"
+        "message": "activity saved"
     }
