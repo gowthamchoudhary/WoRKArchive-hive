@@ -6,6 +6,7 @@ from db.session import Base
 from model.users.users import User, RefreshToken
 from model.connections.connection import Connection
 from model.activity import Activity
+from model.summary.summary import WorkSummary
 from core.config import settings
 from alembic import context
 
