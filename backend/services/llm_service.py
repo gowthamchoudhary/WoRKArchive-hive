@@ -68,4 +68,4 @@ Rules:
 
     data = response.json()
     content =  data["choices"][0]["message"]["content"]
-    return json.load(content)
+    return json.loads(content)
