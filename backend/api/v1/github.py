@@ -19,6 +19,7 @@ from services.github_service import (
     normalize_github_activity,
     save_activities
 )
+from model.post.post import Post
 from model.summary.summary import WorkSummary
 from services.llm_service import analyze_work
 router = APIRouter(
@@ -247,11 +248,16 @@ async def retrieve_summary(
         post_time,
         user_timezone
     )
-
-    if window_end > now:
-        window_end -= timedelta(days=1)
-
-    window_start = window_end - timedelta(hours=24)
+    last_post = (
+    db.query(Post)
+    .filter(Post.user_id == current_user.id)
+    .order_by(Post.created_at.desc())
+    .first()
+)
+    if last_post:
+        window_start = last_post.created_at
+    else:
+        window_start = window_end-timedelta(hours=24)        
 
     activities = []
 
