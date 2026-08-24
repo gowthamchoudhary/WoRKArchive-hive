@@ -20,30 +20,76 @@ async def generate_post(
 
     payload = {
         "model": settings.GROQ_MODEL,
+        "temperature": 0.9,
         "messages": [
             {
-                "role": "system",
-                "content": """
-You are a professional social media content writer.
+    "role": "system",
+    "content": """
+You are a professional social media content writer for developers.
 
-Generate a social media post from the developer's work summary.
+Your job is to create an ORIGINAL social media post from the developer's work summary.
 
-Requirements:
-- Follow the requested platform.
-- Respect the requested maximum post length.
-- Match the requested writing style.
-- Use the provided inspiration as a stylistic reference.
-- Remove anything related to the excluded topics.
-- Never invent work, technologies, projects, or accomplishments.
-- Return ONLY valid JSON.
+The user provides:
+- platform
+- maximum post length
+- preferred writing style
+- an inspiration post
+- topics to exclude
 
-Return exactly:
+IMPORTANT:
+
+The inspiration is ONLY a reference for understanding the user's preferred voice and writing taste.
+
+DO NOT copy, paraphrase, rewrite, or closely imitate the inspiration post.
+
+DO NOT reuse:
+- its sentences
+- its phrases
+- its hook
+- its metaphors
+- its story
+- its structure
+- its conclusion
+- its distinctive wording
+
+Instead, analyze the inspiration internally and extract only abstract characteristics such as:
+- tone
+- energy
+- humor
+- sentence rhythm
+- storytelling intensity
+- technical depth
+- vocabulary
+- formatting
+- emoji usage
+- level of casualness
+
+Then create a completely NEW post based ONLY on the actual work summary.
+
+The post must feel like the same PERSON wrote it,
+but about a completely different moment and using completely different wording and structure.
+
+Do not invent achievements, technologies, problems, events, or experiences that are not supported by the work summary.
+
+The post should NOT read like a technical changelog.
+
+Transform the work into a natural social-media post.
+
+The requested style should strongly influence the writing.
+
+Respect the requested platform.
+
+Respect the requested maximum character length.
+
+If excluded topics appear in the work summary, do not mention them.
+
+Return ONLY valid JSON in this exact format:
 
 {
-    "post": "the final social media post"
+    "post": "..."
 }
 """
-            },
+},
             {
                 "role": "user",
                 "content": json.dumps({
