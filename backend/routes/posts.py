@@ -24,17 +24,33 @@ async def generate_post_route(
     db_work_summary= db.query(WorkSummary).filter(WorkSummary.id==work_summary_id,WorkSummary.user_id==current_user.id).first()
     if not db_work_summary:
         raise HTTPException(status_code=404,detail="no work summary found")
-    post = await generate_post(db_work_summary,platform,post_length,style,inspiration,excluded_topics)
+    work_summary_data = {
+    "summary": db_work_summary.summary,
+    "projects": db_work_summary.projects,
+    "technologies": db_work_summary.technologies,
+    "activities": db_work_summary.activities,
+    "accomplishments": db_work_summary.accomplishments,
+    "problems_solved": db_work_summary.problems_solved,
+}
+
+    post = await generate_post(
+            work_summary_data,
+            platform,
+            post_length,
+            style,
+            inspiration,
+            excluded_topics
+        )
 
     db_post = Post(
-                user_id=current_user.id,
-                work_summary_id=work_summary_id,
-                platform=platform,
-                content=post["post"]
-    )
+            user_id=current_user.id,
+            work_summary_id=work_summary_id,
+            platform=platform,
+            content=post["post"]
+        )
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
     return {
-        "post":post
+        "post":post["post"]
     }
