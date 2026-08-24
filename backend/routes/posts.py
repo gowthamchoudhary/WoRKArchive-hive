@@ -8,7 +8,8 @@ from services.post_service import generate_post
 from model.summary.summary import WorkSummary
 from db.session import get_db
 from core.dependency import get_current_user, create_access_token
-router = APIRouter(prefix="/post")
+import json
+router = APIRouter(prefix="/post",tags=["post"])
 
 @router.post("/generate_post")
 async def generate_post_route(
@@ -54,3 +55,32 @@ async def generate_post_route(
     return {
         "post":post["post"]
     }
+
+
+@router.get("/retrieve_posts/{worksummary_id}")
+def retrieve_posts(
+    worksummary_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_posts = (
+        db.query(Post)
+        .filter(
+            Post.user_id == current_user.id,
+            Post.work_summary_id == worksummary_id
+        )
+        .order_by(Post.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": post.id,
+            "work_summary_id": post.work_summary_id,
+            "platform": post.platform,
+            "content": post.content,
+            "created_at": post.created_at,
+            "posted_at": post.posted_at
+        }
+        for post in db_posts
+    ]
