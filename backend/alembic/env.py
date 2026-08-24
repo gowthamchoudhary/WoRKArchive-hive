@@ -9,6 +9,7 @@ from model.activity import Activity
 from model.summary.summary import WorkSummary
 from core.config import settings
 from alembic import context
+from model.post.post import Post        
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
