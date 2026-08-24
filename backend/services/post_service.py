@@ -70,6 +70,7 @@ The post must feel like the same PERSON wrote it,
 but about a completely different moment and using completely different wording and structure.
 
 Do not invent achievements, technologies, problems, events, or experiences that are not supported by the work summary.
+Do not copy the same content Copy only the styles ---- striclty avoid copying the times,places and moods
 
 The post should NOT read like a technical changelog.
 
@@ -120,4 +121,6 @@ Return ONLY valid JSON in this exact format:
 
     content = data["choices"][0]["message"]["content"]
 
-    return json.loads(content)
+    return {
+        "post":content
+    }
