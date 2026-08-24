@@ -2,10 +2,12 @@ from fastapi import FastAPI,Request,HTTPException,Depends
 from api.v1 import auth
 from db.session import Base,engine
 from api.v1 import github
+from routes import posts
 from core.dependency import get_current_user
 app = FastAPI(title="todays goal",version="1.0.0")
 app.include_router(auth.router)
 app.include_router(github.router)
+app.include_router(posts.router)
 
 @app.get("/")
 def get_me():
