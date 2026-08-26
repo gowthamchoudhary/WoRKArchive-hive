@@ -1,0 +1,49 @@
+.get-started-btn {
+  width: 180px;
+  height: 55px;
+
+  border: 1px solid #18171c;
+  border-radius: 25px;
+
+  /* Fill */
+  background: linear-gradient(
+    180deg,
+    #18171c 0%,
+    #312f37 100%
+  );
+
+  /* Effects */
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.15),
+    0 2px 4px rgba(1, 1, 1, 0.15);
+
+  /* Text */
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 400;
+  font-family: inherit;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.get-started-btn:hover {
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.2),
+    0 3px 6px rgba(1, 1, 1, 0.2);
+}
+
+.get-started-btn:active {
+  transform: translateY(1px);
+
+  box-shadow:
+    inset 0 3px 4px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(1, 1, 1, 0.15);
+}

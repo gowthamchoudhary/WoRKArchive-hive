@@ -1,0 +1,35 @@
+.topbar {
+  height: 50px;
+  width: 60vw;
+
+  /* border: 2px solid red; */
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+
+  font-family: "Figtree", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: -0.5px;
+}
+
+#white_logo {
+  width: 30px;
+  height: 30px;
+  background-color: black;
+  border-radius: 9.5px;
+  object-fit: contain;
+  display: block;
+}
