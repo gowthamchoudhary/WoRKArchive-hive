@@ -1,8 +1,8 @@
 .topbar {
   height: 50px;
-  width: 60vw;
+  width: 80vw;
 
-  /* border: 2px solid red; */
+  border: 2px solid red;
 
   display: flex;
   align-items: center;
@@ -20,7 +20,7 @@
 
   font-family: "Figtree", sans-serif;
   font-optical-sizing: auto;
-  font-weight: 700;
+  font-weight: 300;
   font-style: normal;
   letter-spacing: -0.5px;
 }
