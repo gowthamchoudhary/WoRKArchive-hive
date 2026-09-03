@@ -23,7 +23,7 @@ const Auth = () => {
     setMessage("");
     try {
       if (login) {
-        const response = await loginUser(username, password);
+        const response = await loginUser(email, password);
         console.log("response", response);
         setMessage("logged in successfully");
       } else {
@@ -56,6 +56,9 @@ const Auth = () => {
     setPassword("");
 
     setShowPassword(false);
+
+    setError("");
+    setMessage("");
   }
 
   return (
@@ -116,8 +119,6 @@ const Auth = () => {
               required
               onChange={(e) => setPassword(e.target.value)}
             />
-            {error && <p className="auth-error">{error}</p>}
-            {message && <p className="auth-success">{message}</p>}
 
             <button
               type="button"
@@ -130,6 +131,8 @@ const Auth = () => {
               ) : (
                 <Eye size={17} strokeWidth={1.8} />
               )}
+              {error && <p className="auth-error">{error}</p>}
+              {message && <p className="auth-success">{message}</p>}
             </button>
           </div>
 
