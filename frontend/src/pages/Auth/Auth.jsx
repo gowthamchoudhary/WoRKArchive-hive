@@ -4,7 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 import black_logo from "../../assets/black_logo_logs.png";
 import "./Auth.css";
 import { loginUser, registerUser } from "../../api/auth";
-
+import { useNavigate } from "react-router-dom";
 const Auth = () => {
   const [login, setLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -13,7 +13,7 @@ const Auth = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   async function authentication(e) {
@@ -26,6 +26,7 @@ const Auth = () => {
         const response = await loginUser(email, password);
         console.log("response", response);
         setMessage("logged in successfully");
+        navigate("/dashboard");
       } else {
         const response = await registerUser(username, email, password);
         console.log("response", response);
