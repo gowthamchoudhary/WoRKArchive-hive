@@ -3,108 +3,87 @@ import { Eye, EyeOff } from "lucide-react";
 
 import black_logo from "../../assets/black_logo_logs.png";
 import "./Auth.css";
+import { loginUser, registerUser } from "../../api/auth";
 
 const Auth = () => {
-  // true = Login
-  // false = Signup
   const [login, setLogin] = useState(true);
-
-  // Form states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Password visibility
   const [showPassword, setShowPassword] = useState(false);
 
-  // Login / Signup
   async function authentication(e) {
     e.preventDefault();
-
-    if (login) {
-      // Login
-      console.log("Login:", {
-        email,
-        password,
-      });
-
-      // Later:
-      // const response = await loginUser(email, password);
-      // navigate("/dashboard");
-    } else {
-      // Signup
-      console.log("Signup:", {
-        username,
-        email,
-        password,
-      });
-
-      // Later:
-      // const response = await signupUser(username, email, password);
-      // navigate("/dashboard");
+    setError("");
+    setLoading(true);
+    setMessage("");
+    try {
+      if (login) {
+        const response = await loginUser(username, password);
+        console.log("response", response);
+        setMessage("logged in successfully");
+      } else {
+        const response = await registerUser(username, email, password);
+        console.log("response", response);
+        setMessage("Account created succefully");
+        setUsername("");
+        setEmail("");
+        setPassword("");
+      }
+    } catch (error) {
+      console.error("auth error", error);
+      if (error.response) {
+        setError(error.response.data?.detail || "Something went wrong");
+      } else if (error.request) {
+        setError("Cannot connect to the server");
+      } else {
+        setError("Something went wrong");
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
-  // Switch between Login and Signup
   function toggleAuth() {
     setLogin((prev) => !prev);
 
-    // Clear form
     setUsername("");
     setEmail("");
     setPassword("");
 
-    // Reset password visibility
     setShowPassword(false);
   }
 
   return (
     <div className="authpage">
       <div className="main-box">
+        <img src={black_logo} id="logo" alt="Logo" />
 
-        {/* Logo */}
-        <img
-          src={black_logo}
-          id="logo"
-          alt="Logo"
-        />
-
-        {/* Greeting */}
         <div className="greet-sec">
-
           <div className="welcome">
-            {login
-              ? "Yooo, welcome back!"
-              : "Let's get you started!"}
+            {login ? "Yooo, welcome back!" : "Let's get you started!"}
           </div>
 
           <div className="logorsign">
             {login ? (
               <>
                 First time here?
-                <span onClick={toggleAuth}>
-                  Sign up for free
-                </span>
+                <span onClick={toggleAuth}>Sign up for free</span>
               </>
             ) : (
               <>
                 Already have an account?
-                <span onClick={toggleAuth}>
-                  Login
-                </span>
+                <span onClick={toggleAuth}>Login</span>
               </>
             )}
           </div>
-
         </div>
 
-        {/* Form */}
-        <form
-          className="buttons"
-          onSubmit={authentication}
-        >
-
-          {/* Username - Signup only */}
+        <form className="buttons" onSubmit={authentication}>
           {!login && (
             <input
               type="text"
@@ -117,7 +96,6 @@ const Auth = () => {
             />
           )}
 
-          {/* Email */}
           <input
             type="email"
             placeholder="your email"
@@ -128,34 +106,24 @@ const Auth = () => {
             onChange={(e) => setEmail(e.target.value)}
           />
 
-          {/* Password */}
           <div className="password-wrapper">
-
             <input
               type={showPassword ? "text" : "password"}
               placeholder="enter your password"
               className="password"
               value={password}
-              autoComplete={
-                login
-                  ? "current-password"
-                  : "new-password"
-              }
+              autoComplete={login ? "current-password" : "new-password"}
               required
               onChange={(e) => setPassword(e.target.value)}
             />
+            {error && <p className="auth-error">{error}</p>}
+            {message && <p className="auth-success">{message}</p>}
 
             <button
               type="button"
               className="eye-button"
-              onClick={() =>
-                setShowPassword((prev) => !prev)
-              }
-              aria-label={
-                showPassword
-                  ? "Hide password"
-                  : "Show password"
-              }
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
                 <EyeOff size={17} strokeWidth={1.8} />
@@ -163,16 +131,18 @@ const Auth = () => {
                 <Eye size={17} strokeWidth={1.8} />
               )}
             </button>
-
           </div>
 
-          {/* Submit */}
-          <button type="submit">
-            {login ? "Login" : "Sign Up"}
+          <button type="submit" disabled={loading}>
+            {loading
+              ? login
+                ? "Logging in..."
+                : "Creating account..."
+              : login
+                ? "Login"
+                : "Sign Up"}
           </button>
-
         </form>
-
       </div>
     </div>
   );
