@@ -276,6 +276,24 @@
 
   box-shadow: none;
 }
+.auth-error {
+  width: 100%;
+  margin: 0;
+  color: #d32f2f;
+  font-size: 13px;
+}
+
+.auth-success {
+  width: 100%;
+  margin: 0;
+  color: #2e7d32;
+  font-size: 13px;
+}
+
+.buttons > button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 @media (max-width: 480px) {
   .authpage {
