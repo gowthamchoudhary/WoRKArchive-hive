@@ -67,6 +67,17 @@ const Dashboard = () => {
       setLoading(false);
     }
   }
+  useEffect(() => {
+    checkGithubConnection();
+  }, []);
+  async function checkGithubConnection() {
+    try {
+      const data = await getGithubMe();
+      setGithub(data);
+    } catch (error) {
+      setGithub(null);
+    }
+  }
 
   return (
     <div className="dashboard">
@@ -96,7 +107,7 @@ const Dashboard = () => {
 
           <Settings size={20} strokeWidth={1.8} />
 
-          {github && (
+          {github ? (
             <div className="profile">
               {github.avatar_url ? (
                 <img src={github.avatar_url} alt="" />
@@ -110,6 +121,11 @@ const Dashboard = () => {
 
               <ChevronDown size={16} />
             </div>
+          ) : (
+            <button className="connect-github-button" onClick={connectGithub}>
+              <GitBranch size={17} />
+              Connect GitHub
+            </button>
           )}
         </div>
       </header>
