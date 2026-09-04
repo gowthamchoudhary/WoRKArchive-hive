@@ -6,6 +6,7 @@ import {
   getGithubActivities,
   getWorkSummary,
 } from "../../api/github";
+import { current_user } from "../../api/auth";
 import { useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -24,6 +25,7 @@ import black_logo from "../../assets/black_logo_logs.png";
 import "./Dashboard.css";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [postTime, setPostTime] = useState("");
   const [github, setGithub] = useState(null);
   const [githubActivity, setGithubActivity] = useState(null);
@@ -49,7 +51,7 @@ const Dashboard = () => {
           getGithubActivity(postTime),
           getGithubActivities(postTime),
           getWorkSummary(postTime),
-        ]);
+        ]); 
 
       setGithub(githubData);
       setGithubActivity(githubActivityData);
@@ -68,8 +70,16 @@ const Dashboard = () => {
     }
   }
   useEffect(() => {
-    checkGithubConnection();
+    checkSession();
   }, []);
+  async function checkSession() {
+    try {
+      await current_user();
+      await checkGithubConnection();
+    } catch (error) {
+      navigate("/auth");
+    }
+  }
   async function checkGithubConnection() {
     try {
       const data = await getGithubMe();
@@ -98,9 +108,6 @@ const Dashboard = () => {
 
           <button>History</button>
         </nav>
-        <button className="connect-github-button" onClick={connectGithub}>
-          Connect GitHub
-        </button>
 
         <div className="nav-right">
           <Bell size={20} strokeWidth={1.8} />
