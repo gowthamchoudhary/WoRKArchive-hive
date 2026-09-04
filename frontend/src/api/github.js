@@ -34,3 +34,6 @@ export async function getWorkSummary(postTime) {
 
   return response.data;
 }
+export function connectGithub() {
+  window.location.href = `${import.meta.env.VITE_API_URL}/api/v1/auth/github/login`;
+}
