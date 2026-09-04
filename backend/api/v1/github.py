@@ -46,10 +46,11 @@ async def github_callback(
     db_connection = db.query(Connection).filter(Connection.provider_user_id==github_provider_user_id, Connection.provider == "github").first()
 
     email = None
+
     for item in github_user_emails:
         if item.get("primary") and item.get("verified"):
-           email = item["email"]
-        break
+            email = item["email"]
+            break
     if db_connection:
         db_connection.provider_user_id = github_provider_user_id
         db_connection.username = github_user["login"]
@@ -77,13 +78,15 @@ async def github_callback(
            "sub":str(current_user.id),
        }
     )
-    response = RedirectResponse(url="/dashboard")
+    response = RedirectResponse(    
+    url="http://localhost:5173/dashboard"
+)
 
     response.set_cookie(
         key="access_token",
         value=jwt_token,
         httponly=True,
-        secure=True,
+        secure=False,
         samesite="lax",
         max_age=60 * 60 * 24 * 7,
     )
