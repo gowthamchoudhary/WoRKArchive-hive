@@ -27,6 +27,16 @@ export async function getGithubActivities(postTime) {
   return response.data;
 }
 
+export async function syncGithubActivity(postTime) {
+  const response = await api.post("/api/v1/auth/github/activity/sync", null, {
+    params: {
+      post_time: postTime,
+    },
+  });
+
+  return response.data;
+}
+
 export async function getWorkSummary(postTime) {
   const response = await api.get("/api/v1/auth/github/retrieve_summary_llm", {
     params: {
