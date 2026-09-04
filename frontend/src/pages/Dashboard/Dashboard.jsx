@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  connectGithub,
   getGithubMe,
   getGithubActivity,
   getGithubActivities,
@@ -18,6 +19,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import black_logo from "../../assets/black_logo_logs.png";
 
 import "./Dashboard.css";
 
@@ -41,17 +43,13 @@ const Dashboard = () => {
       setLoading(true);
       setError("");
 
-      const [
-        githubData,
-        githubActivityData,
-        activitiesData,
-        summaryData,
-      ] = await Promise.all([
-        getGithubMe(),
-        getGithubActivity(postTime),
-        getGithubActivities(postTime),
-        getWorkSummary(postTime),
-      ]);
+      const [githubData, githubActivityData, activitiesData, summaryData] =
+        await Promise.all([
+          getGithubMe(),
+          getGithubActivity(postTime),
+          getGithubActivities(postTime),
+          getWorkSummary(postTime),
+        ]);
 
       setGithub(githubData);
       setGithubActivity(githubActivityData);
@@ -61,10 +59,7 @@ const Dashboard = () => {
       console.error("Dashboard error:", error);
 
       if (error.response) {
-        setError(
-          error.response.data?.detail ||
-            "Could not load dashboard"
-        );
+        setError(error.response.data?.detail || "Could not load dashboard");
       } else {
         setError("Could not connect to the server");
       }
@@ -75,44 +70,36 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-
       {/* NAVBAR */}
 
       <header className="dashboard-nav">
-
         <div className="brand">
-          <div className="brand-icon">✦</div>
+          <div className="brand-icon">
+            <img src={black_logo} />
+          </div>
           <span>LOGS</span>
         </div>
 
         <nav>
-          <button className="nav-active">
-            Overview
-          </button>
+          <button className="nav-active">Overview</button>
 
-          <button>
-            Create
-          </button>
+          <button>Create</button>
 
-          <button>
-            History
-          </button>
+          <button>History</button>
         </nav>
+        <button className="connect-github-button" onClick={connectGithub}>
+          Connect GitHub
+        </button>
 
         <div className="nav-right">
-
           <Bell size={20} strokeWidth={1.8} />
 
           <Settings size={20} strokeWidth={1.8} />
 
           {github && (
             <div className="profile">
-
               {github.avatar_url ? (
-                <img
-                  src={github.avatar_url}
-                  alt=""
-                />
+                <img src={github.avatar_url} alt="" />
               ) : (
                 <div className="profile-letter">
                   {github.username?.[0]?.toUpperCase()}
@@ -124,19 +111,13 @@ const Dashboard = () => {
               <ChevronDown size={16} />
             </div>
           )}
-
         </div>
-
       </header>
-
 
       {/* TIME SELECTOR */}
 
       <div className="dashboard-controls">
-
-        <label>
-          Post time
-        </label>
+        <label>Post time</label>
 
         <input
           type="time"
@@ -151,94 +132,61 @@ const Dashboard = () => {
         >
           {loading ? "Loading..." : "Load dashboard"}
         </button>
-
       </div>
 
-
-      {error && (
-        <div className="dashboard-error">
-          {error}
-        </div>
-      )}
-
+      {error && <div className="dashboard-error">{error}</div>}
 
       {/* DASHBOARD CONTENT */}
 
       {!summary && !loading ? (
         <div className="empty-dashboard">
           <h2>Ready when you are.</h2>
-          <p>
-            Choose your post time to load your work summary.
-          </p>
+          <p>Choose your post time to load your work summary.</p>
         </div>
       ) : (
-
         <main className="dashboard-grid">
-
           {/* MAIN SUMMARY CARD */}
 
           <section className="summary-card">
-
             <div className="summary-header">
-
               <div>
-                <p className="eyebrow">
-                  TODAY
-                </p>
+                <p className="eyebrow">TODAY</p>
 
-                <h1>
-                  Your work, remembered.
-                </h1>
+                <h1>Your work, remembered.</h1>
 
                 <p className="subtitle">
-                  LOGS analyzed your activity and generated
-                  this summary.
+                  LOGS analyzed your activity and generated this summary.
                 </p>
               </div>
 
               <div className="date-pill">
                 <CalendarDays size={17} />
 
-                <span>
-                  Today
-                </span>
+                <span>Today</span>
               </div>
-
             </div>
-
 
             {/* AI SUMMARY */}
 
             {summary?.summary && (
-              <div className="ai-summary">
-                {summary.summary}
-              </div>
+              <div className="ai-summary">{summary.summary}</div>
             )}
-
 
             {/* STATS */}
 
             <div className="summary-stats">
-
               <div>
                 <Activity size={18} />
 
-                <span>
-                  Activities
-                </span>
+                <span>Activities</span>
 
-                <strong>
-                  {activities.length}
-                </strong>
+                <strong>{activities.length}</strong>
               </div>
-
 
               <div>
                 <Folder size={18} />
 
-                <span>
-                  Projects
-                </span>
+                <span>Projects</span>
 
                 <strong>
                   {Array.isArray(summary?.projects)
@@ -247,13 +195,10 @@ const Dashboard = () => {
                 </strong>
               </div>
 
-
               <div>
                 <Code2 size={18} />
 
-                <span>
-                  Technologies
-                </span>
+                <span>Technologies</span>
 
                 <strong>
                   {Array.isArray(summary?.technologies)
@@ -262,246 +207,141 @@ const Dashboard = () => {
                 </strong>
               </div>
 
-
               <div>
                 <GitBranch size={18} />
 
-                <span>
-                  GitHub Events
-                </span>
+                <span>GitHub Events</span>
 
-                <strong>
-                  {githubActivity?.count ?? 0}
-                </strong>
+                <strong>{githubActivity?.count ?? 0}</strong>
               </div>
-
             </div>
 
-
             <button className="create-post-button">
-
               <Sparkles size={18} />
 
-              <span>
-                Turn this into a post
-              </span>
+              <span>Turn this into a post</span>
 
               <ArrowRight size={20} />
-
             </button>
-
           </section>
-
 
           {/* TODAY'S ACTIVITY */}
 
           <section className="card activity-card">
-
-            <h2>
-              Today's Activity
-            </h2>
+            <h2>Today's Activity</h2>
 
             <div className="activity-row">
-
               <div className="activity-icon">
                 <Activity size={18} />
               </div>
 
-              <span>
-                Activities
-              </span>
+              <span>Activities</span>
 
-              <strong>
-                {activities.length}
-              </strong>
-
+              <strong>{activities.length}</strong>
             </div>
 
-
             <div className="activity-row">
-
               <div className="activity-icon">
                 <Folder size={18} />
               </div>
 
-              <span>
-                Projects
-              </span>
+              <span>Projects</span>
 
               <strong>
-                {Array.isArray(summary?.projects)
-                  ? summary.projects.length
-                  : 0}
+                {Array.isArray(summary?.projects) ? summary.projects.length : 0}
               </strong>
-
             </div>
 
-
             <div className="activity-row">
-
               <div className="activity-icon">
                 <Code2 size={18} />
               </div>
 
-              <span>
-                Technologies
-              </span>
+              <span>Technologies</span>
 
               <strong>
                 {Array.isArray(summary?.technologies)
                   ? summary.technologies.length
                   : 0}
               </strong>
-
             </div>
 
-
             <div className="activity-row">
-
               <div className="activity-icon">
                 <GitBranch size={18} />
               </div>
 
-              <span>
-                GitHub Events
-              </span>
+              <span>GitHub Events</span>
 
-              <strong>
-                {githubActivity?.count ?? 0}
-              </strong>
-
+              <strong>{githubActivity?.count ?? 0}</strong>
             </div>
-
           </section>
-
 
           {/* PROJECTS */}
 
           <section className="card">
-
             <div className="card-heading">
-
-              <h2>
-                Projects
-              </h2>
-
+              <h2>Projects</h2>
             </div>
 
             <div className="tag-list">
-
               {Array.isArray(summary?.projects) &&
                 summary.projects.map((project, index) => (
-
-                  <div
-                    className="data-item"
-                    key={index}
-                  >
-                    {typeof project === "string"
-                      ? project
-                      : project.name}
+                  <div className="data-item" key={index}>
+                    {typeof project === "string" ? project : project.name}
                   </div>
-
                 ))}
-
             </div>
-
           </section>
-
 
           {/* TECHNOLOGIES */}
 
           <section className="card">
-
             <div className="card-heading">
-
-              <h2>
-                Technologies
-              </h2>
-
+              <h2>Technologies</h2>
             </div>
 
             <div className="tag-list">
-
               {Array.isArray(summary?.technologies) &&
                 summary.technologies.map((technology, index) => (
-
-                  <div
-                    className="technology-item"
-                    key={index}
-                  >
+                  <div className="technology-item" key={index}>
                     <span>
                       {typeof technology === "string"
                         ? technology
                         : technology.name}
                     </span>
                   </div>
-
                 ))}
-
             </div>
-
           </section>
-
 
           {/* ACCOMPLISHMENTS */}
 
           <section className="card full-card">
-
-            <h2>
-              Accomplishments
-            </h2>
+            <h2>Accomplishments</h2>
 
             {Array.isArray(summary?.accomplishments) &&
-              summary.accomplishments.map(
-                (item, index) => (
-
-                  <div
-                    className="list-item"
-                    key={index}
-                  >
-                    •{" "}
-                    {typeof item === "string"
-                      ? item
-                      : item.description}
-                  </div>
-
-                )
-              )}
-
+              summary.accomplishments.map((item, index) => (
+                <div className="list-item" key={index}>
+                  • {typeof item === "string" ? item : item.description}
+                </div>
+              ))}
           </section>
-
 
           {/* PROBLEMS SOLVED */}
 
           <section className="card full-card">
-
-            <h2>
-              Problems Solved
-            </h2>
+            <h2>Problems Solved</h2>
 
             {Array.isArray(summary?.problems_solved) &&
-              summary.problems_solved.map(
-                (item, index) => (
-
-                  <div
-                    className="list-item"
-                    key={index}
-                  >
-                    •{" "}
-                    {typeof item === "string"
-                      ? item
-                      : item.description}
-                  </div>
-
-                )
-              )}
-
+              summary.problems_solved.map((item, index) => (
+                <div className="list-item" key={index}>
+                  • {typeof item === "string" ? item : item.description}
+                </div>
+              ))}
           </section>
-
         </main>
-
       )}
-
     </div>
   );
 };
