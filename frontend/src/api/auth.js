@@ -30,5 +30,5 @@ export async function logoutUser() {
   return response.data;
 }
 export const current_user = () => {
-  return api.get("/auth/me");
+  return api.get("/profile");
 };
