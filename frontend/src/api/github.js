@@ -1,5 +1,7 @@
 import api from "./axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, "") || "";
+
 export async function getGithubMe() {
   const response = await api.get("/api/v1/auth/github/me");
   return response.data;
@@ -35,5 +37,5 @@ export async function getWorkSummary(postTime) {
   return response.data;
 }
 export function connectGithub() {
-  window.location.href = `${import.meta.env.VITE_API_URL}/api/v1/auth/github/login`;
+  window.location.href = `${API_BASE_URL}/api/v1/auth/github/login`;
 }
