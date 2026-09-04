@@ -120,7 +120,6 @@ Return ONLY valid JSON in this exact format:
     data = response.json()
 
     content = data["choices"][0]["message"]["content"]
+    parsed_content = json.loads(content)
 
-    return {
-        "post":content
-    }
+    return parsed_content
