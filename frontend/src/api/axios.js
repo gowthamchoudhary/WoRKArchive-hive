@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -15,8 +15,14 @@ api.interceptors.response.use(
 
   async (error) => {
     const originalRequest = error.config;
+    const isRefreshRequest = originalRequest?.url === "/v1/auth/refresh";
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isRefreshRequest
+    ) {
       originalRequest._retry = true;
 
       try {
