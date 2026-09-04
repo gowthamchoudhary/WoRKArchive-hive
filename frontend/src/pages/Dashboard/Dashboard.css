@@ -1,6 +1,6 @@
 .dashboard {
   min-height: 100vh;
-  background: #f7f7f6;
+  background: #FBFBFD;
   padding: 28px 56px 45px;
   font-family: Arial, sans-serif;
   color: #111;
@@ -26,8 +26,12 @@
   font-weight: 700;
 }
 
-.brand-icon {
-  font-size: 27px;
+
+.brand-icon img {
+  height: 45px;
+  width: 45px;
+  object-fit: cover;
+  border-radius: 13px;
 }
 
 .dashboard-nav nav {
