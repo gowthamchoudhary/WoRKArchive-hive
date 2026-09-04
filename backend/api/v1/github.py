@@ -289,5 +289,6 @@ async def retrieve_summary(
     db.refresh(db_worksummary)
 
     return {
+        "work_summary_id": db_worksummary.id,
         "llm_summary": llm_summary
     }
