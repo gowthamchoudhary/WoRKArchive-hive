@@ -14,11 +14,11 @@ router = APIRouter(prefix="/post",tags=["post"])
 @router.post("/generate_post")
 async def generate_post_route(
     work_summary_id: int,
-    platform: str,
-    post_length: int,
-    style: str,
-    inspiration: str,
-    excluded_topics: list[str],
+    platform: str = "LinkedIn",
+    post_length: int = 1200,
+    style: str = "clear and casual",
+    inspiration: str = "",
+    excluded_topics: list[str] = Query(default=[]),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
