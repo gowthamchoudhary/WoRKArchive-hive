@@ -5,8 +5,10 @@ import {
   getGithubActivity,
   getGithubActivities,
   getWorkSummary,
+  syncGithubActivity,
 } from "../../api/github";
 import { current_user } from "../../api/auth";
+import { generatePost } from "../../api/posts";
 import { useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -31,8 +33,11 @@ const Dashboard = () => {
   const [githubActivity, setGithubActivity] = useState(null);
   const [activities, setActivities] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [workSummaryId, setWorkSummaryId] = useState(null);
+  const [generatedPost, setGeneratedPost] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [postLoading, setPostLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function loadDashboard() {
@@ -45,18 +50,23 @@ const Dashboard = () => {
       setLoading(true);
       setError("");
 
-      const [githubData, githubActivityData, activitiesData, summaryData] =
-        await Promise.all([
-          getGithubMe(),
-          getGithubActivity(postTime),
-          getGithubActivities(postTime),
-          getWorkSummary(postTime),
-        ]); 
+      const [githubData, githubActivityData] = await Promise.all([
+        getGithubMe(),
+        getGithubActivity(postTime),
+        syncGithubActivity(postTime),
+      ]);
+
+      const [activitiesData, summaryData] = await Promise.all([
+        getGithubActivities(postTime),
+        getWorkSummary(postTime),
+      ]);
 
       setGithub(githubData);
       setGithubActivity(githubActivityData);
       setActivities(activitiesData);
+      setWorkSummaryId(summaryData.work_summary_id);
       setSummary(summaryData.llm_summary);
+      setGeneratedPost("");
     } catch (error) {
       console.error("Dashboard error:", error);
 
@@ -67,6 +77,30 @@ const Dashboard = () => {
       }
     } finally {
       setLoading(false);
+    }
+  }
+  async function createPost() {
+    if (!workSummaryId) {
+      setError("Load your dashboard summary before creating a post.");
+      return;
+    }
+
+    try {
+      setPostLoading(true);
+      setError("");
+
+      const data = await generatePost(workSummaryId);
+      setGeneratedPost(data.post);
+    } catch (error) {
+      console.error("Post generation error:", error);
+
+      if (error.response) {
+        setError(error.response.data?.detail || "Could not generate post");
+      } else {
+        setError("Could not connect to the server");
+      }
+    } finally {
+      setPostLoading(false);
     }
   }
   useEffect(() => {
@@ -239,13 +273,25 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <button className="create-post-button">
+            <button
+              className="create-post-button"
+              onClick={createPost}
+              disabled={postLoading}
+            >
               <Sparkles size={18} />
 
-              <span>Turn this into a post</span>
+              <span>
+                {postLoading ? "Creating post..." : "Turn this into a post"}
+              </span>
 
               <ArrowRight size={20} />
             </button>
+
+            {generatedPost && (
+              <div className="generated-post">
+                <p>{generatedPost}</p>
+              </div>
+            )}
           </section>
 
           {/* TODAY'S ACTIVITY */}
