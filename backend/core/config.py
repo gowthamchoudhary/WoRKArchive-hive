@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS:int
     GROQ_API_KEY:str  
     GROQ_MODEL:str
+    FRONTEND_URL: str = "http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:5173"
     model_config = SettingsConfigDict(
         env_file=".env"
     )
