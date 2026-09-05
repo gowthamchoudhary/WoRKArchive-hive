@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react";
 
 import {
-  connectGithub,
   getGithubMe,
+  syncGithubActivity,
   getGithubActivity,
   getGithubActivities,
   getWorkSummary,
-  syncGithubActivity,
 } from "../../api/github";
 
-import { current_user } from "../../api/auth";
 import { generatePost } from "../../api/posts";
-
-import { useNavigate } from "react-router-dom";
 
 import {
   Bell,
@@ -23,8 +19,12 @@ import {
   Folder,
   Code2,
   GitBranch,
-  ArrowRight,
   Sparkles,
+  Copy,
+  RefreshCw,
+  ExternalLink,
+  Clock3,
+  Check,
 } from "lucide-react";
 
 import black_logo from "../../assets/black_logo_logs.png";
@@ -32,535 +32,672 @@ import black_logo from "../../assets/black_logo_logs.png";
 import "./Dashboard.css";
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-
-  // ============================================================
-  // STATE
-  // ============================================================
-
-  const [postTime, setPostTime] = useState("");
 
   const [github, setGithub] = useState(null);
-
   const [githubActivity, setGithubActivity] = useState(null);
-
   const [activities, setActivities] = useState([]);
-
   const [summary, setSummary] = useState(null);
 
   const [workSummaryId, setWorkSummaryId] = useState(null);
 
+
+
+  const [platform, setPlatform] = useState("x");
+  const [postLength, setPostLength] = useState(500);
+  const [style, setStyle] = useState("Casual & authentic");
+  const [inspiration, setInspiration] = useState("");
+  const [excludedTopics, setExcludedTopics] = useState([]);
+
+
+
   const [generatedPost, setGeneratedPost] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  
+  // UI STATES
+  
 
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [postLoading, setPostLoading] = useState(false);
 
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
-  // ============================================================
-  // LOAD DASHBOARD
-  // ============================================================
+  
+  // POST TIME
+  
 
-  async function loadDashboard() {
-    if (!postTime) {
-      setError("Please select your post time.");
+  const getCurrentTime = () => {
+    const now = new Date();
 
-      return;
-    }
+    return `${String(now.getHours()).padStart(2, "0")}:${String(
+      now.getMinutes(),
+    ).padStart(2, "0")}`;
+  };
 
+  const [postTime, setPostTime] = useState(getCurrentTime());
+
+  
+  // LOAD DASHBOARD AUTOMATICALLY
+  
+
+  async function loadDashboard(time = postTime) {
     try {
-      setLoading(true);
-
+      setDashboardLoading(true);
       setError("");
 
-      // --------------------------------------------------------
-      // STEP 1
-      // Get GitHub profile
-      // Get current GitHub activity
-      // Sync GitHub activity to database
-      //
-      // These can happen in parallel because none of them
-      // depends on the result of another one.
-      // --------------------------------------------------------
-
-      const [githubData, githubActivityData, syncData] = await Promise.all([
-        getGithubMe(),
-
-        getGithubActivity(postTime),
-
-        syncGithubActivity(postTime),
-      ]);
-
-      // --------------------------------------------------------
-      // STEP 2
-      //
-      // IMPORTANT:
-      //
-      // These happen AFTER sync finishes.
-      //
-      // Therefore retrieve_activity() can see the newly
-      // saved activities.
-      //
-      // And retrieve_summary_llm() can generate a summary
-      // from those activities.
-      // --------------------------------------------------------
-
-      const [activitiesData, summaryData] = await Promise.all([
-        getGithubActivities(postTime),
-
-        getWorkSummary(postTime),
-      ]);
-
-      // --------------------------------------------------------
-      // Update React state
-      // --------------------------------------------------------
+      // 1. GitHub profile
+      const githubData = await getGithubMe();
 
       setGithub(githubData);
 
+      // 2. Sync GitHub events into Activities table
+      await syncGithubActivity(time);
+
+      // 3. Fetch raw GitHub window information
+      const githubActivityData = await getGithubActivity(time);
+
       setGithubActivity(githubActivityData);
 
-      setActivities(activitiesData);
+      // 4. Retrieve saved normalized activities
+      const activitiesData = await getGithubActivities(time);
 
-      setWorkSummaryId(summaryData.work_summary_id);
+      setActivities(Array.isArray(activitiesData) ? activitiesData : []);
+
+      // 5. Generate/retrieve LLM work summary
+      const summaryData = await getWorkSummary(time);
 
       setSummary(summaryData.llm_summary);
 
-      // Clear previous generated post
-      setGeneratedPost("");
-    } catch (error) {
-      console.error("Dashboard error:", error);
+      /*
+        IMPORTANT:
 
-      if (error.response) {
-        setError(error.response.data?.detail || "Could not load dashboard");
+        Your current backend response showed:
+
+        {
+          "llm_summary": ...
+        }
+
+        but your generate_post endpoint requires work_summary_id.
+
+        If you change retrieve_summary_llm to also return:
+
+        {
+          "work_summary_id": db_worksummary.id,
+          "llm_summary": llm_summary
+        }
+
+        this will work:
+      */
+
+      if (summaryData.work_summary_id) {
+        setWorkSummaryId(summaryData.work_summary_id);
+      }
+    } catch (err) {
+      console.error("Dashboard loading failed:", err);
+
+      if (err.response) {
+        setError(err.response.data?.detail || "Could not load today's work.");
       } else {
-        setError("Could not connect to the server");
+        setError("Could not connect to LOGS backend.");
       }
     } finally {
-      setLoading(false);
+      setDashboardLoading(false);
     }
   }
 
-  // ============================================================
-  // CREATE POST
-  // ============================================================
+  
+  // AUTOMATIC FIRST LOAD
+  
 
-  async function createPost() {
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  
+  // GENERATE POST
+  
+
+  async function handleGeneratePost() {
     if (!workSummaryId) {
-      setError("Load your dashboard summary before creating a post.");
+      setError(
+        "Work summary ID is missing. The summary endpoint needs to return it.",
+      );
 
       return;
     }
 
     try {
       setPostLoading(true);
-
       setError("");
 
-      const data = await generatePost(workSummaryId);
+      const data = await generatePost(
+        workSummaryId,
+        platform,
+        postLength,
+        style,
+        inspiration,
+        excludedTopics,
+      );
 
-      setGeneratedPost(data.post);
-    } catch (error) {
-      console.error("Post generation error:", error);
 
-      if (error.response) {
-        setError(error.response.data?.detail || "Could not generate post");
-      } else {
-        setError("Could not connect to the server");
+      let post = data.post;
+
+      if (typeof post === "object" && post !== null) {
+        post = post.post;
       }
+
+      if (typeof post === "string" && post.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(post);
+
+          if (parsed.post) {
+            post = parsed.post;
+          }
+        } catch {
+        }
+      }
+
+      setGeneratedPost(post || "");
+    } catch (err) {
+      console.error("Post generation failed:", err);
+
+      setError(err.response?.data?.detail || "Could not generate your post.");
     } finally {
       setPostLoading(false);
     }
   }
 
-  // ============================================================
-  // CHECK SESSION
-  // ============================================================
+    
 
-  useEffect(() => {
-    checkSession();
-  }, []);
+  async function handleCopy() {
+    if (!generatedPost) return;
 
-  async function checkSession() {
     try {
-      // --------------------------------------------------------
-      // Check LOGS authentication
-      // --------------------------------------------------------
+      await navigator.clipboard.writeText(generatedPost);
 
-      await current_user();
+      setCopied(true);
 
-      // --------------------------------------------------------
-      // Check GitHub connection
-      // --------------------------------------------------------
-
-      await checkGithubConnection();
-    } catch (error) {
-      navigate("/auth");
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (err) {
+      console.error("Clipboard failed:", err);
     }
   }
 
-  // ============================================================
-  // CHECK GITHUB CONNECTION
-  // ============================================================
+  
 
-  async function checkGithubConnection() {
-    try {
-      const data = await getGithubMe();
+  
 
-      setGithub(data);
-    } catch (error) {
-      setGithub(null);
+  function openPlatform() {
+    const urls = {
+      x: "https://x.com/compose/post",
+      linkedin: "https://www.linkedin.com/feed/",
+      reddit: "https://www.reddit.com/submit",
+      devto: "https://dev.to/new",
+    };
+
+    const url = urls[platform];
+
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
     }
   }
 
-  // ============================================================
-  // RENDER
-  // ============================================================
+  
+  
+
+  const projects = Array.isArray(summary?.projects) ? summary.projects : [];
+
+  const technologies = Array.isArray(summary?.technologies)
+    ? summary.technologies
+    : [];
+
+  const accomplishments = Array.isArray(summary?.accomplishments)
+    ? summary.accomplishments
+    : [];
+
+  const problemsSolved = Array.isArray(summary?.problems_solved)
+    ? summary.problems_solved
+    : [];
+
+  
+  
+
+  if (dashboardLoading) {
+    return (
+      <div className="dashboard-loading">
+        <img src={black_logo} alt="LOGS" />
+
+        <h2>LOGS is remembering what you built...</h2>
+
+        <p>Looking through today's GitHub activity.</p>
+      </div>
+    );
+  }
+
+
+  
 
   return (
     <div className="dashboard">
-      {/* ======================================================
-          NAVBAR
-      ====================================================== */}
+    
 
       <header className="dashboard-nav">
-        {/* BRAND */}
-
         <div className="brand">
-          <div className="brand-icon">
-            <img src={black_logo} alt="LOGS" />
-          </div>
-
+          <img src={black_logo} alt="LOGS" />
           <span>LOGS</span>
         </div>
-
-        {/* NAVIGATION */}
 
         <nav>
           <button className="nav-active">Overview</button>
 
-          <button>Create</button>
-
           <button>History</button>
         </nav>
 
-        {/* RIGHT SIDE */}
-
         <div className="nav-right">
-          <Bell size={20} strokeWidth={1.8} />
+          <Bell size={20} />
 
-          <Settings size={20} strokeWidth={1.8} />
+          <Settings size={20} />
 
-          {/* --------------------------------------------------
-              GITHUB PROFILE
-              -------------------------------------------------- */}
-
-          {github ? (
+          {github && (
             <div className="profile">
-              {github.avatar_url ? (
-                <img src={github.avatar_url} alt="" />
-              ) : (
-                <div className="profile-letter">
-                  {github.username?.[0]?.toUpperCase()}
-                </div>
+              {github.avatar_url && (
+                <img src={github.avatar_url} alt={github.username} />
               )}
 
               <span>{github.username}</span>
 
               <ChevronDown size={16} />
             </div>
-          ) : (
-            <button className="connect-github-button" onClick={connectGithub}>
-              <GitBranch size={17} />
-              Connect GitHub
-            </button>
           )}
         </div>
       </header>
 
-      {/* ======================================================
-          TIME SELECTOR
-      ====================================================== */}
+      {/* =====================================
+          PAGE INTRO
+      ====================================== */}
 
-      <div className="dashboard-controls">
-        <label>Post time</label>
+      <section className="dashboard-intro">
+        <div>
+          <p className="greeting">Good evening,</p>
 
-        <input
-          type="time"
-          value={postTime}
-          onChange={(e) => setPostTime(e.target.value)}
-        />
+          <h1>{github?.username || "Builder"} 👋</h1>
 
-        <button
-          className="load-button"
-          onClick={loadDashboard}
-          disabled={loading}
-        >
-          {loading ? "Loading..." : "Load dashboard"}
-        </button>
-      </div>
+          <p className="intro-description">
+            Here's what you've been building today. LOGS analyzed your GitHub
+            activity and prepared a summary.
+          </p>
+        </div>
 
-      {/* ERROR */}
+        <div className="dashboard-status">
+          <div className="updated-status">
+            <span className="status-dot" />
+            Updated just now
+          </div>
+
+          <div className="posting-time">
+            <Clock3 size={18} />
+
+            <div>
+              <span>Posting time</span>
+
+              <input
+                type="time"
+                value={postTime}
+                onChange={(e) => setPostTime(e.target.value)}
+              />
+            </div>
+
+            <button
+              onClick={() => loadDashboard(postTime)}
+              title="Refresh using this posting time"
+            >
+              <RefreshCw size={16} />
+            </button>
+          </div>
+        </div>
+      </section>
 
       {error && <div className="dashboard-error">{error}</div>}
 
-      {/* ======================================================
-          DASHBOARD CONTENT
-      ====================================================== */}
+      {/* =====================================
+          MAIN GRID
+      ====================================== */}
 
-      {!summary && !loading ? (
-        <div className="empty-dashboard">
-          <h2>Ready when you are.</h2>
+      <main className="dashboard-layout">
+        {/* LEFT SIDE */}
 
-          <p>Choose your post time to load your work summary.</p>
-        </div>
-      ) : (
-        <main className="dashboard-grid">
-          {/* ==================================================
-              MAIN SUMMARY CARD
-          ================================================== */}
+        <div className="dashboard-left">
+          {/* TODAY'S WORK */}
 
-          <section className="summary-card">
-            <div className="summary-header">
-              <div>
-                <p className="eyebrow">TODAY</p>
+          <section className="today-card">
+            <div className="today-card-header">
+              <div className="card-title">
+                <CalendarDays size={19} />
 
-                <h1>Your work, remembered.</h1>
-
-                <p className="subtitle">
-                  LOGS analyzed your activity and generated this summary.
-                </p>
+                <h2>Today's Work</h2>
               </div>
-
-              <div className="date-pill">
-                <CalendarDays size={17} />
-
-                <span>Today</span>
-              </div>
-            </div>
-
-            {/* AI SUMMARY */}
-
-            {summary?.summary && (
-              <div className="ai-summary">{summary.summary}</div>
-            )}
-
-            {/* ==================================================
-                STATS
-            ================================================== */}
-
-            <div className="summary-stats">
-              {/* ACTIVITIES */}
-
-              <div>
-                <Activity size={18} />
-
-                <span>Activities</span>
-
-                <strong>{activities.length}</strong>
-              </div>
-
-              {/* PROJECTS */}
-
-              <div>
-                <Folder size={18} />
-
-                <span>Projects</span>
-
-                <strong>
-                  {Array.isArray(summary?.projects)
-                    ? summary.projects.length
-                    : 0}
-                </strong>
-              </div>
-
-              {/* TECHNOLOGIES */}
-
-              <div>
-                <Code2 size={18} />
-
-                <span>Technologies</span>
-
-                <strong>
-                  {Array.isArray(summary?.technologies)
-                    ? summary.technologies.length
-                    : 0}
-                </strong>
-              </div>
-
-              {/* GITHUB EVENTS */}
-
-              <div>
-                <GitBranch size={18} />
-
-                <span>GitHub Events</span>
-
-                <strong>{githubActivity?.count ?? 0}</strong>
-              </div>
-            </div>
-
-            {/* ==================================================
-                CREATE POST
-            ================================================== */}
-
-            <button
-              className="create-post-button"
-              onClick={createPost}
-              disabled={postLoading}
-            >
-              <Sparkles size={18} />
 
               <span>
-                {postLoading ? "Creating post..." : "Turn this into a post"}
+                {new Date().toLocaleDateString(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </span>
-
-              <ArrowRight size={20} />
-            </button>
-
-            {/* GENERATED POST */}
-
-            {generatedPost && (
-              <div className="generated-post">
-                <p>{generatedPost}</p>
-              </div>
-            )}
-          </section>
-
-          {/* ==================================================
-              TODAY'S ACTIVITY
-          ================================================== */}
-
-          <section className="card activity-card">
-            <h2>Today's Activity</h2>
-
-            {/* ACTIVITIES */}
-
-            <div className="activity-row">
-              <div className="activity-icon">
-                <Activity size={18} />
-              </div>
-
-              <span>Activities</span>
-
-              <strong>{activities.length}</strong>
             </div>
 
-            {/* PROJECTS */}
+            <h1>Built, learned and made progress.</h1>
 
-            <div className="activity-row">
-              <div className="activity-icon">
-                <Folder size={18} />
+            <p className="work-summary">
+              {summary?.summary || "No work summary available yet."}
+            </p>
+
+            {/* STATS */}
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <Activity />
+
+                <strong>{activities.length}</strong>
+
+                <span>Activities</span>
               </div>
 
-              <span>Projects</span>
+              <div className="stat-card">
+                <Folder />
 
-              <strong>
-                {Array.isArray(summary?.projects) ? summary.projects.length : 0}
-              </strong>
-            </div>
+                <strong>{projects.length}</strong>
 
-            {/* TECHNOLOGIES */}
-
-            <div className="activity-row">
-              <div className="activity-icon">
-                <Code2 size={18} />
+                <span>Projects</span>
               </div>
 
-              <span>Technologies</span>
+              <div className="stat-card">
+                <Code2 />
 
-              <strong>
-                {Array.isArray(summary?.technologies)
-                  ? summary.technologies.length
-                  : 0}
-              </strong>
-            </div>
+                <strong>{technologies.length}</strong>
 
-            {/* GITHUB EVENTS */}
-
-            <div className="activity-row">
-              <div className="activity-icon">
-                <GitBranch size={18} />
+                <span>Technologies</span>
               </div>
 
-              <span>GitHub Events</span>
+              <div className="stat-card">
+                <GitBranch />
 
-              <strong>{githubActivity?.count ?? 0}</strong>
-            </div>
-          </section>
+                <strong>{githubActivity?.count ?? 0}</strong>
 
-          {/* ==================================================
-              PROJECTS
-          ================================================== */}
-
-          <section className="card">
-            <div className="card-heading">
-              <h2>Projects</h2>
+                <span>GitHub Events</span>
+              </div>
             </div>
 
-            <div className="tag-list">
-              {Array.isArray(summary?.projects) &&
-                summary.projects.map((project, index) => (
-                  <div className="data-item" key={index}>
-                    {typeof project === "string" ? project : project.name}
+            {/* HIGHLIGHTS */}
+
+            <div className="work-details">
+              <div>
+                <h3>Top highlights</h3>
+
+                {accomplishments.map((item, index) => (
+                  <div className="highlight" key={index}>
+                    <span className="highlight-dot" />
+
+                    {typeof item === "string" ? item : item.description}
                   </div>
                 ))}
-            </div>
-          </section>
+              </div>
 
-          {/* ==================================================
-              TECHNOLOGIES
-          ================================================== */}
+              <div>
+                <h3>Technologies used</h3>
 
-          <section className="card">
-            <div className="card-heading">
-              <h2>Technologies</h2>
-            </div>
-
-            <div className="tag-list">
-              {Array.isArray(summary?.technologies) &&
-                summary.technologies.map((technology, index) => (
-                  <div className="technology-item" key={index}>
-                    <span>
+                <div className="technology-tags">
+                  {technologies.map((technology, index) => (
+                    <span key={index}>
                       {typeof technology === "string"
                         ? technology
                         : technology.name}
                     </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
 
-          {/* ==================================================
-              ACCOMPLISHMENTS
-          ================================================== */}
+          {/* LOWER GRID */}
 
-          <section className="card full-card">
-            <h2>Accomplishments</h2>
+          <div className="dashboard-bottom-grid">
+            {/* RECENT ACTIVITY */}
 
-            {Array.isArray(summary?.accomplishments) &&
-              summary.accomplishments.map((item, index) => (
-                <div className="list-item" key={index}>
-                  • {typeof item === "string" ? item : item.description}
+            <section className="dashboard-card">
+              <h2>Recent Activity</h2>
+
+              <div className="recent-list">
+                {activities.slice(0, 5).map((activity, index) => (
+                  <div className="recent-item" key={activity.id || index}>
+                    <div className="recent-icon">
+                      <GitBranch size={16} />
+                    </div>
+
+                    <span>
+                      {activity.description ||
+                        activity.title ||
+                        activity.activity_type ||
+                        "GitHub activity"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* PROJECTS */}
+
+            <section className="dashboard-card">
+              <h2>Projects</h2>
+
+              <div className="project-list">
+                {projects.map((project, index) => (
+                  <div className="project-item" key={index}>
+                    <Folder size={19} />
+
+                    <span>
+                      {typeof project === "string" ? project : project.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* PROBLEMS SOLVED */}
+
+          {problemsSolved.length > 0 && (
+            <section className="dashboard-card problems-card">
+              <h2>Problems Solved</h2>
+
+              {problemsSolved.map((problem, index) => (
+                <div className="problem-item" key={index}>
+                  {typeof problem === "string" ? problem : problem.description}
                 </div>
               ))}
-          </section>
+            </section>
+          )}
+        </div>
 
-          {/* ==================================================
-              PROBLEMS SOLVED
-          ================================================== */}
+        {/* =====================================
+            RIGHT SIDE — POST CREATOR
+        ====================================== */}
 
-          <section className="card full-card">
-            <h2>Problems Solved</h2>
+        <aside className="post-panel">
+          <div className="post-panel-title">
+            <Sparkles size={25} />
 
-            {Array.isArray(summary?.problems_solved) &&
-              summary.problems_solved.map((item, index) => (
-                <div className="list-item" key={index}>
-                  • {typeof item === "string" ? item : item.description}
-                </div>
+            <div>
+              <h2>Generate a Post</h2>
+
+              <p>Turn today's work into something worth sharing.</p>
+            </div>
+          </div>
+
+          {/* PLATFORM */}
+
+          <div className="form-group">
+            <label>Platform</label>
+
+            <div className="platform-options">
+              {[
+                ["x", "𝕏"],
+                ["linkedin", "LinkedIn"],
+                ["reddit", "Reddit"],
+                ["devto", "Dev.to"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  className={platform === value ? "selected" : ""}
+                  onClick={() => setPlatform(value)}
+                >
+                  {label}
+                </button>
               ))}
-          </section>
-        </main>
-      )}
+            </div>
+          </div>
+
+          {/* LENGTH */}
+
+          <div className="form-group">
+            <label>Length</label>
+
+            <div className="length-options">
+              <button
+                className={postLength === 280 ? "selected" : ""}
+                onClick={() => setPostLength(280)}
+              >
+                Short
+              </button>
+
+              <button
+                className={postLength === 500 ? "selected" : ""}
+                onClick={() => setPostLength(500)}
+              >
+                Medium
+              </button>
+
+              <button
+                className={postLength === 1200 ? "selected" : ""}
+                onClick={() => setPostLength(1200)}
+              >
+                Long
+              </button>
+            </div>
+          </div>
+
+          {/* STYLE */}
+
+          <div className="form-group">
+            <label>Style</label>
+
+            <select value={style} onChange={(e) => setStyle(e.target.value)}>
+              <option>Casual & authentic</option>
+
+              <option>Technical deep dive</option>
+
+              <option>Builder update</option>
+
+              <option>Crazy student style</option>
+
+              <option>Professional</option>
+            </select>
+          </div>
+
+          {/* INSPIRATION */}
+
+          <div className="form-group">
+            <label>
+              Inspiration
+              <span> optional</span>
+            </label>
+
+            <textarea
+              value={inspiration}
+              onChange={(e) => setInspiration(e.target.value)}
+              placeholder="Paste a post or describe the vibe you want..."
+            />
+          </div>
+
+          {/* EXCLUDED TOPICS */}
+
+          <div className="form-group">
+            <label>
+              Exclude topics
+              <span> optional</span>
+            </label>
+
+            <input
+              type="text"
+              placeholder="Personal info, certain technologies..."
+              onChange={(e) => {
+                const topics = e.target.value
+                  .split(",")
+                  .map((topic) => topic.trim())
+                  .filter(Boolean);
+
+                setExcludedTopics(topics);
+              }}
+            />
+          </div>
+
+          {/* GENERATE */}
+
+          <button
+            className="generate-button"
+            onClick={handleGeneratePost}
+            disabled={postLoading}
+          >
+            <Sparkles size={18} />
+
+            {postLoading ? "Writing..." : "Generate post"}
+          </button>
+
+          {/* GENERATED POST */}
+
+          {generatedPost && (
+            <div className="generated-post">
+              <div className="generated-post-header">
+                <h3>Your Post</h3>
+
+                <button onClick={handleGeneratePost} disabled={postLoading}>
+                  <RefreshCw size={15} />
+                  Regenerate
+                </button>
+              </div>
+
+              <textarea
+                className="post-editor"
+                value={generatedPost}
+                onChange={(e) => setGeneratedPost(e.target.value)}
+              />
+
+              <div className="post-actions">
+                <button className="copy-button" onClick={handleCopy}>
+                  {copied ? <Check size={17} /> : <Copy size={17} />}
+
+                  {copied ? "Copied!" : "Copy to clipboard"}
+                </button>
+
+                <button className="platform-open-button" onClick={openPlatform}>
+                  <ExternalLink size={17} />
+                  Open{" "}
+                  {platform === "x"
+                    ? "X"
+                    : platform === "linkedin"
+                      ? "LinkedIn"
+                      : platform === "reddit"
+                        ? "Reddit"
+                        : "Dev.to"}
+                </button>
+              </div>
+            </div>
+          )}
+        </aside>
+      </main>
     </div>
   );
 };
