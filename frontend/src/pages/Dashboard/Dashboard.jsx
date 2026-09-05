@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   connectGithub,
   getGithubMe,
@@ -7,9 +8,12 @@ import {
   getWorkSummary,
   syncGithubActivity,
 } from "../../api/github";
+
 import { current_user } from "../../api/auth";
 import { generatePost } from "../../api/posts";
+
 import { useNavigate } from "react-router-dom";
+
 import {
   Bell,
   Settings,
@@ -22,50 +26,107 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+
 import black_logo from "../../assets/black_logo_logs.png";
 
 import "./Dashboard.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
   const [postTime, setPostTime] = useState("");
+
   const [github, setGithub] = useState(null);
+
   const [githubActivity, setGithubActivity] = useState(null);
+
   const [activities, setActivities] = useState([]);
+
   const [summary, setSummary] = useState(null);
+
   const [workSummaryId, setWorkSummaryId] = useState(null);
+
   const [generatedPost, setGeneratedPost] = useState("");
 
   const [loading, setLoading] = useState(false);
+
   const [postLoading, setPostLoading] = useState(false);
+
   const [error, setError] = useState("");
+
+  // ============================================================
+  // LOAD DASHBOARD
+  // ============================================================
 
   async function loadDashboard() {
     if (!postTime) {
       setError("Please select your post time.");
+
       return;
     }
 
     try {
       setLoading(true);
+
       setError("");
 
-      const [githubData, githubActivityData] = await Promise.all([
+      // --------------------------------------------------------
+      // STEP 1
+      // Get GitHub profile
+      // Get current GitHub activity
+      // Sync GitHub activity to database
+      //
+      // These can happen in parallel because none of them
+      // depends on the result of another one.
+      // --------------------------------------------------------
+
+      const [githubData, githubActivityData, syncData] = await Promise.all([
         getGithubMe(),
+
         getGithubActivity(postTime),
+
         syncGithubActivity(postTime),
       ]);
 
+      // --------------------------------------------------------
+      // STEP 2
+      //
+      // IMPORTANT:
+      //
+      // These happen AFTER sync finishes.
+      //
+      // Therefore retrieve_activity() can see the newly
+      // saved activities.
+      //
+      // And retrieve_summary_llm() can generate a summary
+      // from those activities.
+      // --------------------------------------------------------
+
       const [activitiesData, summaryData] = await Promise.all([
         getGithubActivities(postTime),
+
         getWorkSummary(postTime),
       ]);
 
+      // --------------------------------------------------------
+      // Update React state
+      // --------------------------------------------------------
+
       setGithub(githubData);
+
       setGithubActivity(githubActivityData);
+
       setActivities(activitiesData);
+
       setWorkSummaryId(summaryData.work_summary_id);
+
       setSummary(summaryData.llm_summary);
+
+      // Clear previous generated post
       setGeneratedPost("");
     } catch (error) {
       console.error("Dashboard error:", error);
@@ -79,17 +140,25 @@ const Dashboard = () => {
       setLoading(false);
     }
   }
+
+  // ============================================================
+  // CREATE POST
+  // ============================================================
+
   async function createPost() {
     if (!workSummaryId) {
       setError("Load your dashboard summary before creating a post.");
+
       return;
     }
 
     try {
       setPostLoading(true);
+
       setError("");
 
       const data = await generatePost(workSummaryId);
+
       setGeneratedPost(data.post);
     } catch (error) {
       console.error("Post generation error:", error);
@@ -103,37 +172,69 @@ const Dashboard = () => {
       setPostLoading(false);
     }
   }
+
+  // ============================================================
+  // CHECK SESSION
+  // ============================================================
+
   useEffect(() => {
     checkSession();
   }, []);
+
   async function checkSession() {
     try {
+      // --------------------------------------------------------
+      // Check LOGS authentication
+      // --------------------------------------------------------
+
       await current_user();
+
+      // --------------------------------------------------------
+      // Check GitHub connection
+      // --------------------------------------------------------
+
       await checkGithubConnection();
     } catch (error) {
       navigate("/auth");
     }
   }
+
+  // ============================================================
+  // CHECK GITHUB CONNECTION
+  // ============================================================
+
   async function checkGithubConnection() {
     try {
       const data = await getGithubMe();
+
       setGithub(data);
     } catch (error) {
       setGithub(null);
     }
   }
 
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <div className="dashboard">
-      {/* NAVBAR */}
+      {/* ======================================================
+          NAVBAR
+      ====================================================== */}
 
       <header className="dashboard-nav">
+        {/* BRAND */}
+
         <div className="brand">
           <div className="brand-icon">
-            <img src={black_logo} />
+            <img src={black_logo} alt="LOGS" />
           </div>
+
           <span>LOGS</span>
         </div>
+
+        {/* NAVIGATION */}
 
         <nav>
           <button className="nav-active">Overview</button>
@@ -143,10 +244,16 @@ const Dashboard = () => {
           <button>History</button>
         </nav>
 
+        {/* RIGHT SIDE */}
+
         <div className="nav-right">
           <Bell size={20} strokeWidth={1.8} />
 
           <Settings size={20} strokeWidth={1.8} />
+
+          {/* --------------------------------------------------
+              GITHUB PROFILE
+              -------------------------------------------------- */}
 
           {github ? (
             <div className="profile">
@@ -171,7 +278,9 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* TIME SELECTOR */}
+      {/* ======================================================
+          TIME SELECTOR
+      ====================================================== */}
 
       <div className="dashboard-controls">
         <label>Post time</label>
@@ -191,18 +300,25 @@ const Dashboard = () => {
         </button>
       </div>
 
+      {/* ERROR */}
+
       {error && <div className="dashboard-error">{error}</div>}
 
-      {/* DASHBOARD CONTENT */}
+      {/* ======================================================
+          DASHBOARD CONTENT
+      ====================================================== */}
 
       {!summary && !loading ? (
         <div className="empty-dashboard">
           <h2>Ready when you are.</h2>
+
           <p>Choose your post time to load your work summary.</p>
         </div>
       ) : (
         <main className="dashboard-grid">
-          {/* MAIN SUMMARY CARD */}
+          {/* ==================================================
+              MAIN SUMMARY CARD
+          ================================================== */}
 
           <section className="summary-card">
             <div className="summary-header">
@@ -229,9 +345,13 @@ const Dashboard = () => {
               <div className="ai-summary">{summary.summary}</div>
             )}
 
-            {/* STATS */}
+            {/* ==================================================
+                STATS
+            ================================================== */}
 
             <div className="summary-stats">
+              {/* ACTIVITIES */}
+
               <div>
                 <Activity size={18} />
 
@@ -239,6 +359,8 @@ const Dashboard = () => {
 
                 <strong>{activities.length}</strong>
               </div>
+
+              {/* PROJECTS */}
 
               <div>
                 <Folder size={18} />
@@ -252,6 +374,8 @@ const Dashboard = () => {
                 </strong>
               </div>
 
+              {/* TECHNOLOGIES */}
+
               <div>
                 <Code2 size={18} />
 
@@ -264,6 +388,8 @@ const Dashboard = () => {
                 </strong>
               </div>
 
+              {/* GITHUB EVENTS */}
+
               <div>
                 <GitBranch size={18} />
 
@@ -272,6 +398,10 @@ const Dashboard = () => {
                 <strong>{githubActivity?.count ?? 0}</strong>
               </div>
             </div>
+
+            {/* ==================================================
+                CREATE POST
+            ================================================== */}
 
             <button
               className="create-post-button"
@@ -287,6 +417,8 @@ const Dashboard = () => {
               <ArrowRight size={20} />
             </button>
 
+            {/* GENERATED POST */}
+
             {generatedPost && (
               <div className="generated-post">
                 <p>{generatedPost}</p>
@@ -294,10 +426,14 @@ const Dashboard = () => {
             )}
           </section>
 
-          {/* TODAY'S ACTIVITY */}
+          {/* ==================================================
+              TODAY'S ACTIVITY
+          ================================================== */}
 
           <section className="card activity-card">
             <h2>Today's Activity</h2>
+
+            {/* ACTIVITIES */}
 
             <div className="activity-row">
               <div className="activity-icon">
@@ -308,6 +444,8 @@ const Dashboard = () => {
 
               <strong>{activities.length}</strong>
             </div>
+
+            {/* PROJECTS */}
 
             <div className="activity-row">
               <div className="activity-icon">
@@ -320,6 +458,8 @@ const Dashboard = () => {
                 {Array.isArray(summary?.projects) ? summary.projects.length : 0}
               </strong>
             </div>
+
+            {/* TECHNOLOGIES */}
 
             <div className="activity-row">
               <div className="activity-icon">
@@ -335,6 +475,8 @@ const Dashboard = () => {
               </strong>
             </div>
 
+            {/* GITHUB EVENTS */}
+
             <div className="activity-row">
               <div className="activity-icon">
                 <GitBranch size={18} />
@@ -346,7 +488,9 @@ const Dashboard = () => {
             </div>
           </section>
 
-          {/* PROJECTS */}
+          {/* ==================================================
+              PROJECTS
+          ================================================== */}
 
           <section className="card">
             <div className="card-heading">
@@ -363,7 +507,9 @@ const Dashboard = () => {
             </div>
           </section>
 
-          {/* TECHNOLOGIES */}
+          {/* ==================================================
+              TECHNOLOGIES
+          ================================================== */}
 
           <section className="card">
             <div className="card-heading">
@@ -384,7 +530,9 @@ const Dashboard = () => {
             </div>
           </section>
 
-          {/* ACCOMPLISHMENTS */}
+          {/* ==================================================
+              ACCOMPLISHMENTS
+          ================================================== */}
 
           <section className="card full-card">
             <h2>Accomplishments</h2>
@@ -397,7 +545,9 @@ const Dashboard = () => {
               ))}
           </section>
 
-          {/* PROBLEMS SOLVED */}
+          {/* ==================================================
+              PROBLEMS SOLVED
+          ================================================== */}
 
           <section className="card full-card">
             <h2>Problems Solved</h2>
