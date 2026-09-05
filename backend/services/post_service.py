@@ -1,6 +1,8 @@
 import httpx
+from fastapi import HTTPException
 from core.config import settings
 import json
+from json import JSONDecodeError
 
 
 async def generate_post(
@@ -21,6 +23,7 @@ async def generate_post(
     payload = {
         "model": settings.GROQ_MODEL,
         "temperature": 0.9,
+        "response_format": {"type": "json_object"},
         "messages": [
             {
     "role": "system",
@@ -105,21 +108,44 @@ Return ONLY valid JSON in this exact format:
         ]
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            url,
-            headers=headers,
-            json=payload
-        )
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                url,
+                headers=headers,
+                json=payload
+            )
 
-    print("STATUS:", response.status_code)
-    print("RESPONSE:", response.text)
+        print("STATUS:", response.status_code)
+        print("RESPONSE:", response.text)
 
-    response.raise_for_status()
+        response.raise_for_status()
 
-    data = response.json()
+        data = response.json()
 
-    content = data["choices"][0]["message"]["content"]
-    parsed_content = json.loads(content)
+        content = data["choices"][0]["message"]["content"]
+        parsed_content = json.loads(content)
 
-    return parsed_content
+        return parsed_content
+    except httpx.ConnectError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not connect to Groq. Check internet/DNS access for api.groq.com.",
+        ) from exc
+    except httpx.TimeoutException as exc:
+        raise HTTPException(
+            status_code=504,
+            detail="Groq took too long to respond. Please try again.",
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        detail = "Groq rejected the post generation request."
+        try:
+            detail = exc.response.json().get("error", {}).get("message", detail)
+        except (ValueError, AttributeError):
+            pass
+        raise HTTPException(status_code=502, detail=detail) from exc
+    except (KeyError, JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Groq returned an unexpected response while generating the post.",
+        ) from exc
