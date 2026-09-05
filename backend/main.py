@@ -6,12 +6,17 @@ from api.v1 import github
 from routes import posts
 from fastapi.middleware.cors import CORSMiddleware
 from core.dependency import get_current_user
+from core.config import settings
 from sqlalchemy.exc import OperationalError
 
 app = FastAPI(title="todays goal",version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        origin.strip()
+        for origin in settings.CORS_ORIGINS.split(",")
+        if origin.strip()
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
